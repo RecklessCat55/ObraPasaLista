@@ -18,7 +18,8 @@ DB_PATH    = os.path.join(BASE_DIR, 'app.db')
 BACKUP_DIR = os.path.join(BASE_DIR, 'backups')
 
 app = Flask(__name__)
-app.secret_key = 'opl-v1.1-local-2026'
+import secrets
+app.secret_key = os.environ.get('SECRET_KEY') or secrets.token_hex(16)
 app.config.update(DATABASE=DB_PATH)
 
 # ── HELPERS DE FECHA (elimina bug datetime.date not subscriptable) ─────────────
