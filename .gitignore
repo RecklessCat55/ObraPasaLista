@@ -1,29 +1,30 @@
-### IntelliJ IDEA ###
-out/
-!**/src/main/**/out/
-!**/src/test/**/out/
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
 
-### Eclipse ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-bin/
-!**/src/main/**/bin/
-!**/src/test/**/bin/
+# Entornos virtuales
+.venv/
+venv/
+env/
 
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
+# Datos de la app (NO subir datos reales de obra)
+app.db
+app.db-journal
+app.db-wal
+app.db-shm
+backups/
 
-### VS Code ###
+# Build de PyInstaller (se regenera con compilar_exe_obra_pasalista.bat)
+build/
+dist/
+
+# IDE
+.idea/
 .vscode/
+*.iml
 
-### Mac OS ###
+# OS
 .DS_Store
+Thumbs.db
