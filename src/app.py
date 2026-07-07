@@ -3,7 +3,7 @@
 """
 ObraPasaLista v1.1
 pip install flask
-python app.py  →  http://127.0.0.1:5000
+python app.py  ->  http://127.0.0.1:5000
 flask --app app init-db     (instalación limpia)
 flask --app app upgrade-db  (migración desde v1.0)
 """
@@ -23,19 +23,19 @@ import secrets
 app.secret_key = os.environ.get('SECRET_KEY') or secrets.token_hex(16)
 app.config.update(DATABASE=DB_PATH)
 
-# ── HELPERS DE FECHA (elimina bug datetime.date not subscriptable) ─────────────
-def nf(f):BASE = r"""<!DOCTYPE html>
+# -- HELPERS DE FECHA (elimina bug datetime.date not subscriptable) --
+def nf(f):
     """Normaliza cualquier tipo de fecha (-> datetime.date)"""
     if isinstance(f, datetime): return f.date()
     if isinstance(f, date_type): return f
     if isinstance(f, str):       return datetime.strptime(f[:10], '%Y-%m-%d').date()
     raise TypeError(f'Tipo de fecha no soportado: {type(f)}')
 
-def fs(f):   return nf(f).strftime('%Y-%m-%d')   # → 'YYYY-MM-DD'
-def mes(f):  return nf(f).strftime('%Y-%m')       # → 'YYYY-MM'
-def dia(f):  return nf(f).day                     # → int 1..31
+def fs(f):   return nf(f).strftime('%Y-%m-%d')   # -> 'YYYY-MM-DD'
+def mes(f):  return nf(f).strftime('%Y-%m')       # -> 'YYYY-MM'
+def dia(f):  return nf(f).day                     # -> int 1..31
 
-# ── SCHEMA COMPLETO v1.1 ───────────────────────────────────────────────────────
+# -- SCHEMA COMPLETO v1.1 --
 SCHEMA = """
 PRAGMA foreign_keys=ON;
 PRAGMA journal_mode=WAL;
@@ -148,7 +148,7 @@ RANGOS_DEFAULT = [
     ('ENCARG','Encargado',  'Encargado de obra'),
 ]
 
-# ── MIGRACIÓN v1.0 → v1.1 ─────────────────────────────────────────────────────
+# -- MIGRACIÓN v1.0 -> v1.1 --
 MIGRATION = [
     "CREATE TABLE IF NOT EXISTS rango(id_rango INTEGER PRIMARY KEY AUTOINCREMENT, codigo TEXT NOT NULL UNIQUE, nombre TEXT NOT NULL, descripcion TEXT NOT NULL DEFAULT '')",
     "CREATE TABLE IF NOT EXISTS persona_rango(id_pr INTEGER PRIMARY KEY AUTOINCREMENT, id_persona INTEGER NOT NULL REFERENCES persona(id_persona) ON DELETE CASCADE, id_rango INTEGER NOT NULL REFERENCES rango(id_rango) ON DELETE RESTRICT, fecha_inicio DATE NOT NULL, fecha_fin DATE)",
@@ -166,7 +166,7 @@ MIGRATION = [
     "ALTER TABLE mensual_persona ADD COLUMN es_subcontrata INTEGER NOT NULL DEFAULT 0",
 ]
 
-# ── DB HELPERS ────────────────────────────────────────────────────────────────
+# -- DB HELPERS --
 def get_db():
     if 'db' not in g:
         conn = sqlite3.connect(app.config['DATABASE'], detect_types=0)
@@ -193,7 +193,7 @@ def cli_init_db():
     db.execute('INSERT OR IGNORE INTO config(id_config,limite_horas_dia) VALUES(1,24.0)')
     db.commit()
     _seed_rangos(db)
-    click.echo('✓ BD inicializada (v1.1).')
+    click.echo('OK BD inicializada (v1.1).')
 
 @app.cli.command('upgrade-db')
 def cli_upgrade_db():
@@ -208,7 +208,7 @@ def cli_upgrade_db():
             if 'duplicate column' in msg or 'already exists' in msg:
                 pass  # ya estaba migrado
             else:
-                click.echo(f'  ⚠ {e}')
+                click.echo(f'  ADVERTENCIA {e}')
     _seed_rangos(db)
     # Asignar SIN_ESPECIFICAR a personas sin historial de rango
     sin = db.execute("SELECT id_rango FROM rango WHERE codigo='SIN_ESPECIFICAR'").fetchone()
@@ -218,9 +218,9 @@ def cli_upgrade_db():
                 db.execute("INSERT INTO persona_rango(id_persona,id_rango,fecha_inicio) VALUES(?,?,'2000-01-01')",
                            [p['id_persona'], sin['id_rango']])
         db.commit()
-    click.echo('✓ Migración v1.1 completada.')
+    click.echo('OK Migración v1.1 completada.')
 
-# ── BUSINESS HELPERS ──────────────────────────────────────────────────────────
+# -- BUSINESS HELPERS --
 def hhmm(h):
     if h is None: return '--'
     hi = int(h); m = round((h - hi) * 60)
@@ -244,7 +244,7 @@ def chk_horas(id_p, fecha, h_new, excl=None):
     tot = get_db().execute(q, p).fetchone()['t']
     if tot + h_new > lim:
         pr = get_db().execute("SELECT nombre||' '||apellido1 n FROM persona WHERE id_persona=?", [id_p]).fetchone()
-        raise ValueError(f"⚠️ {pr['n'] if pr else '?'} ya acumula {hhmm(tot)} ese día. "
+        raise ValueError(f"{pr['n'] if pr else '?'} ya acumula {hhmm(tot)} ese día. "
                          f"Añadir {hhmm(h_new)} supera el límite de {hhmm(lim)} h/día.")
 
 def chk_mes_cerrado(id_obra, id_emp, fecha):
@@ -254,7 +254,7 @@ def chk_mes_cerrado(id_obra, id_emp, fecha):
         "WHERE m.id_obra=? AND m.id_empresa=? AND m.mes=?",
         [id_obra, id_emp, mes(fecha)]).fetchone()
     if m and m['estado'] == 'cerrado':
-        raise ValueError(f"⛔ Mes {mes(fecha)} para '{m['ob']}'/'{m['em']}' está CERRADO.")
+        raise ValueError(f"Mes {mes(fecha)} para '{m['ob']}'/'{m['em']}' está CERRADO.")
 
 def get_rango_activo(id_persona, fecha):
     f = fs(fecha)
@@ -330,7 +330,7 @@ def _init_if_needed():
 def inject_globals():
     return {'hoy': fs(date_type.today())}
 
-# ═══════════════════════════════ TEMPLATES ════════════════════════════════════
+# ================================ TEMPLATES ================================
 
 _BASE_HTML = r"""<!DOCTYPE html>
 <html lang="es" data-bs-theme="dark">
@@ -399,13 +399,14 @@ body{background:#0d1117}
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
 {% block scripts %}{% endblock %}
-app.jinja_env.loader = DictLoader({'_base.html': _BASE_HTML})
-BASE = '{% extends "_base.html" %}'
 </body></html>"""
 
-# ══════════════════════════════ RUTAS ═════════════════════════════════════════
+app.jinja_env.loader = DictLoader({'_base.html': _BASE_HTML})
+BASE = '{% extends "_base.html" %}'
 
-# ── HOME ──────────────────────────────────────────────────────────────────────
+# ================================= RUTAS ====================================
+
+# -- HOME --
 @app.route('/')
 def index():
     _init_if_needed()
@@ -450,7 +451,7 @@ def index():
         ('clock','',           hhmm(get_lim()), 'Límite h/día'),
     ])
 
-# ── EMPRESAS ──────────────────────────────────────────────────────────────────
+# -- EMPRESAS --
 @app.route('/empresas/')
 def empresas():
     db = get_db()
@@ -550,7 +551,7 @@ _EMP_FORM = r"""
 </form></div></div></div></div>
 {% endblock %}"""
 
-# ── SUBCONTRATAS ──────────────────────────────────────────────────────────────
+# -- SUBCONTRATAS --
 @app.route('/subcontratas/')
 def subcontratas():
     db = get_db()
@@ -627,7 +628,7 @@ def subcontrata_eliminar(id_):
     get_db().execute('DELETE FROM empresa_relacion WHERE id_rel=?', [id_]); get_db().commit()
     flash('Relación eliminada.', 'success'); return redirect(url_for('subcontratas'))
 
-# ── RANGOS ────────────────────────────────────────────────────────────────────
+# -- RANGOS --
 @app.route('/rangos/')
 def rangos():
     rows = get_db().execute("""SELECT r.*,
@@ -682,7 +683,7 @@ def rango_nuevo():
         except Exception as e: flash(f'Error: {e}', 'error')
     return redirect(url_for('rangos'))
 
-# ── PERSONAS ──────────────────────────────────────────────────────────────────
+# -- PERSONAS --
 @app.route('/personas/')
 def personas():
     db = get_db()
@@ -883,7 +884,7 @@ _PER_FORM = r"""
 </form></div></div></div></div>
 {% endblock %}"""
 
-# ── OBRAS ─────────────────────────────────────────────────────────────────────
+# -- OBRAS --
 @app.route('/obras/')
 def obras():
     rows = get_db().execute("SELECT * FROM obra ORDER BY estado, nombre").fetchall()
@@ -1068,7 +1069,7 @@ _OBRA_FORM = r"""
 </div></div>
 {% endblock %}"""
 
-# ── DIARIO ────────────────────────────────────────────────────────────────────
+# -- DIARIO --
 @app.route('/diario/')
 def diario_sel():
     obras = get_db().execute("SELECT * FROM obra WHERE estado='activa' ORDER BY nombre").fetchall()
@@ -1156,8 +1157,8 @@ def diario_ver(id_obra, fecha_raw):
                           [id_obra, fecha]).fetchone()
     total    = db.execute("SELECT COALESCE(SUM(horas),0) t FROM diario_linea WHERE id_diario=?", [d['id_diario']]).fetchone()['t']
 
-    METEO = [('soleado','☀️'),('nublado','⛅'),('lluvioso','🌧️'),
-             ('tormentoso','⛈️'),('nevando','❄️'),('ventoso','💨'),('niebla','🌫️')]
+    METEO = [('soleado','soleado'),('nublado','nublado'),('lluvioso','lluvioso'),
+             ('tormentoso','tormentoso'),('nevando','nevando'),('ventoso','ventoso'),('niebla','niebla')]
     m_ico = dict(METEO)
 
     return render_template_string(BASE + r"""
@@ -1423,7 +1424,7 @@ def diario_arrastrar(id_d):
     else:  flash('Sin líneas nuevas para arrastrar.', 'warning')
     return redirect(url_for('diario_ver', id_obra=d['id_obra'], fecha_raw=fs(d['fecha'])))
 
-# ── MENSUAL ───────────────────────────────────────────────────────────────────
+# -- MENSUAL --
 @app.route('/mensual/')
 def mensual_sel():
     db = get_db()
@@ -1544,7 +1545,7 @@ def mensual_cerrar(id_m):
                    + dias_vals + [g['total_mes']])
     db.execute("UPDATE mensual SET estado='cerrado' WHERE id_mensual=?", [id_m])
     db.commit()
-    flash('✅ Mes cerrado. Snapshot generado.', 'success')
+    flash('Mes cerrado. Snapshot generado.', 'success')
     return redirect(url_for('mensual_ver', id_m=id_m))
 
 @app.route('/mensual/<int:id_m>/reabrir', methods=['POST'])
@@ -1649,7 +1650,7 @@ _MENSUAL_TPL = r"""
 {% endif %}
 {% endblock %}"""
 
-# ── BACKUP ────────────────────────────────────────────────────────────────────
+# -- BACKUP --
 @app.route('/backup/')
 def backup_page():
     os.makedirs(BACKUP_DIR, exist_ok=True)
@@ -1687,7 +1688,7 @@ def backup_page():
       <td class="font-monospace small">{{ b }}</td>
       <td class="text-end">
         <form method="post" action="/backup/restaurar" class="d-inline"
-              onsubmit="return confirm('⚠️ ATENCIÓN\n\nRestaurar este backup reemplazará TODOS los datos actuales.\nEs un borrón y cuenta nueva. Los cambios posteriores al backup se perderán.\n\n¿Continuar?')">
+              onsubmit="return confirm('ATENCIÓN\n\nRestaurar este backup reemplazará TODOS los datos actuales.\nEs un borrón y cuenta nueva. Los cambios posteriores al backup se perderán.\n\n¿Continuar?')">
           <input type="hidden" name="nombre" value="{{ b }}">
           <button class="btn btn-sm btn-outline-warning">
             <i class="bi bi-arrow-counterclockwise"></i> Restaurar
@@ -1718,7 +1719,7 @@ def backup_crear():
         src = sqlite3.connect(DB_PATH); dst = sqlite3.connect(ruta)
         with dst: src.backup(dst)
         src.close(); dst.close()
-        flash(f'✅ Backup creado: {nombre}', 'success')
+        flash(f'Backup creado: {nombre}', 'success')
     except Exception as e: flash(f'Error: {e}', 'error')
     return redirect(url_for('backup_page'))
 
@@ -1730,11 +1731,11 @@ def backup_restaurar():
         flash('Backup no encontrado.', 'error'); return redirect(url_for('backup_page'))
     try:
         close_db(); shutil.copy2(ruta, DB_PATH)
-        flash(f'✅ BD restaurada desde: {nombre}. Recarga la aplicación.', 'success')
+        flash(f'BD restaurada desde: {nombre}. Recarga la aplicación.', 'success')
     except Exception as e: flash(f'Error: {e}', 'error')
     return redirect(url_for('backup_page'))
 
-# ── CONFIG ────────────────────────────────────────────────────────────────────
+# -- CONFIG --
 @app.route('/config/', methods=['GET','POST'])
 def configuracion():
     db = get_db()
@@ -1777,7 +1778,7 @@ def configuracion():
 {% endblock %}
 """, lim=lim, hhmm=hhmm)
 
-# ── FAQ ───────────────────────────────────────────────────────────────────────
+# -- FAQ --
 @app.route('/faq/')
 def faq():
     preguntas = [
@@ -1795,7 +1796,7 @@ def faq():
          'Copia <em>toda</em> la base de datos en la carpeta <code>backups/</code>. '
          '<strong>Hazlo antes de cerrar un mes, borrar obras/empresas o restaurar otro backup.</strong>'),
         ('¿Qué implica restaurar un backup?',
-         '⚠️ Es un <strong>borrón y cuenta nueva</strong>: todos los datos actuales se reemplazan. '
+         'Es un <strong>borrón y cuenta nueva</strong>: todos los datos actuales se reemplazan. '
          'Los cambios posteriores al backup se pierden. Úsalo solo en caso de error grave.'),
         ('¿Por qué las horas se muestran en HH:MM?',
          'Internamente se guardan como decimales (7.5 h) para sumar correctamente. '
@@ -1841,7 +1842,7 @@ def faq():
 {% endblock %}
 """, preguntas=preguntas)
 
-# ── MAIN ──────────────────────────────────────────────────────────────────────
+# -- MAIN --
 if __name__ == '__main__':
     with app.app_context():
         _init_if_needed()
