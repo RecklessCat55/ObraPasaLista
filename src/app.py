@@ -9,6 +9,7 @@ flask --app app upgrade-db  (migración desde v1.0)
 """
 import os, sqlite3, shutil, calendar, unicodedata, re, csv, io
 from datetime import datetime, date as date_type
+from jinja2 import DictLoader
 from flask import (Flask, g, render_template_string, request,
                    redirect, url_for, flash, Response)
 import click
@@ -23,8 +24,8 @@ app.secret_key = os.environ.get('SECRET_KEY') or secrets.token_hex(16)
 app.config.update(DATABASE=DB_PATH)
 
 # ── HELPERS DE FECHA (elimina bug datetime.date not subscriptable) ─────────────
-def nf(f):
-    """Normaliza cualquier tipo de fecha → datetime.date"""
+def nf(f):BASE = r"""<!DOCTYPE html>
+    """Normaliza cualquier tipo de fecha (-> datetime.date)"""
     if isinstance(f, datetime): return f.date()
     if isinstance(f, date_type): return f
     if isinstance(f, str):       return datetime.strptime(f[:10], '%Y-%m-%d').date()
@@ -331,7 +332,7 @@ def inject_globals():
 
 # ═══════════════════════════════ TEMPLATES ════════════════════════════════════
 
-BASE = r"""<!DOCTYPE html>
+_BASE_HTML = r"""<!DOCTYPE html>
 <html lang="es" data-bs-theme="dark">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{% block title %}OPL{% endblock %} — ObraPasaLista</title>
@@ -398,6 +399,8 @@ body{background:#0d1117}
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
 {% block scripts %}{% endblock %}
+app.jinja_env.loader = DictLoader({'_base.html': _BASE_HTML})
+BASE = '{% extends "_base.html" %}'
 </body></html>"""
 
 # ══════════════════════════════ RUTAS ═════════════════════════════════════════
