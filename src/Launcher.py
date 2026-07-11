@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-ObraPasaLista — Launcher v1.1
+ObraPasaLista — Launcher v1.2
 Doble clic en start.bat (Windows) o: python3 Launcher.py
 """
 import sys, os, subprocess, time, webbrowser, venv, platform, threading, socket, shutil
@@ -11,7 +11,9 @@ from pathlib import Path
 PORT      = 5000
 URL       = f'http://127.0.0.1:{PORT}'
 BASE_DIR  = Path(__file__).resolve().parent
-DB_PATH   = BASE_DIR / 'app.db'
+DATA_DIR  = BASE_DIR / 'data'
+DB_PATH   = DATA_DIR / 'app.db'
+LEGACY_DB = BASE_DIR / 'app.db'   # ubicación v1.1, por compatibilidad
 VENV_DIR  = BASE_DIR / '.venv'
 APP_FILE  = BASE_DIR / 'app.py'
 REQ_FILE  = BASE_DIR / 'requirements.txt'
@@ -34,7 +36,7 @@ def sep():   print(_c('90', '  ' + '─' * 46))
 def banner():
     print(_c('1;38;5;208', r"""
   ╔════════════════════════════════════════════╗
-  ║  🏗  ObraPasaLista  v1.1                   ║
+  ║  🏗  ObraPasaLista  v1.2                   ║
   ║      Control de presencia en obra          ║
   ╚════════════════════════════════════════════╝"""))
 
@@ -90,22 +92,26 @@ def install_deps():
 
 # ── BASE DE DATOS ─────────────────────────────────────────────────────────────
 def setup_db():
-    """Inicializa la BD si es nueva, o migra si es v1.0."""
+    """Inicializa la BD si es nueva, o migra si es v1.0/v1.1 (app.py también
+    hace esta comprobación al arrancar, pero la repetimos aquí para dar
+    feedback claro en la consola del Launcher)."""
     env = _flask_env()
 
-    if not DB_PATH.exists():
+    if not DB_PATH.exists() and not LEGACY_DB.exists():
         # Instalación limpia
         info('Primera ejecución — inicializando base de datos...')
         r = subprocess.run(
             [str(PY), '-m', 'flask', '--app', 'app', 'init-db'],
             cwd=str(BASE_DIR), env=env, capture_output=True, text=True)
         if r.returncode == 0:
-            ok('Base de datos inicializada (v1.1)')
+            ok('Base de datos inicializada (v1.2)')
         else:
             warn(f'init-db retornó error (puede ignorarse si la BD ya existe):\n  {r.stderr[:300]}')
     else:
-        # BD existente → intentar migración
-        info('Ejecutando migración v1.0 → v1.1 (seguro si ya está migrada)...')
+        # BD existente (v1.0, v1.1 o v1.2) → intentar migración, siempre segura de repetir
+        if LEGACY_DB.exists() and not DB_PATH.exists():
+            info('Detectada BD de una versión anterior en la carpeta del programa; se moverá a data/...')
+        info('Comprobando migraciones (v1.0 → v1.1 → v1.2, seguro si ya está migrada)...')
         r = subprocess.run(
             [str(PY), '-m', 'flask', '--app', 'app', 'upgrade-db'],
             cwd=str(BASE_DIR), env=env, capture_output=True, text=True)
@@ -141,7 +147,7 @@ def run_app():
     sep()
     print(_c('1;38;5;208', f"""
   ┌──────────────────────────────────────────────┐
-  │  🏗  ObraPasaLista v1.1 está corriendo        │
+  │  🏗  ObraPasaLista v1.2 está corriendo        │
   │                                              │
   │  Abre tu navegador en:                       │
   │  {URL:<46} │

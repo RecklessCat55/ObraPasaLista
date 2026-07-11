@@ -9,12 +9,17 @@ __pycache__/
 venv/
 env/
 
-# Datos de la app (NO subir datos reales de obra)
+# Datos de la app (NO subir datos reales de obra) — v1.2: todo vive en src/data/
+src/data/
 app.db
 app.db-journal
 app.db-wal
 app.db-shm
+app_test.db*
 backups/
+
+# Documentación subida por obra/partida (v1.2) — no versionar archivos reales
+src/docs/
 
 # Build de PyInstaller (se regenera con compilar_exe_obra_pasalista.bat)
 build/

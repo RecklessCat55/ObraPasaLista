@@ -1,5 +1,22 @@
 # 📋 ObraPasaLista v1.1 — Análisis Real y Hoja de Ruta
 
+> ## 🆕 ACTUALIZACIÓN — v1.2 implementada
+> Este documento es el análisis histórico de la v1.1. La v1.2 (metas de horas,
+> tarifas/costes, documentación por obra/partida, auditoría, asignación masiva
+> en el diario y estado de obra) ya está implementada siguiendo
+> `cambios-obra-pasalista.md`. Detalles y decisiones de diseño en ese documento;
+> resumen de cambios en el mensaje de la conversación donde se generó esta versión.
+>
+> De paso, varios puntos de la sección "Problemas reales detectados" más abajo
+> ya han quedado resueltos con la v1.2: `secret_key` ahora sale de la variable de
+> entorno `SECRET_KEY` (con fallback aleatorio), la BD y los backups viven en
+> `src/data/` (separados del código, con `app_test.db` para pruebas vía
+> `OBRAPL_MODE=test`), y el `start.sh` ya invoca `Launcher.py` con la mayúscula
+> correcta. Las secciones de abajo se conservan tal cual para no perder el
+> historial de decisiones, pero ya no reflejan el estado actual en esos puntos.
+
+---
+
 **Sistema de Gestión de Partes Diarios de Obra**
 **Versión analizada:** 1.1 (código real del repo, no una versión teórica)
 **Stack:** Python 3 | Flask | SQLite3 (WAL) | `render_template_string` monolítico
