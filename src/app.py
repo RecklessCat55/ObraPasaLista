@@ -938,7 +938,9 @@ def subcontrata_eliminar(id_):
 @app.route('/rangos/')
 def rangos():
     rows = get_db().execute("""SELECT r.*,
-        (SELECT count(*) FROM persona_rango WHERE id_rango=r.id_rango) n,
+        (SELECT count(*) FROM persona_rango WHERE id_rango=r.id_rango) n_hist,
+        (SELECT count(*) FROM diario_linea  WHERE id_rango=r.id_rango) n_diario,
+        (SELECT count(*) FROM mensual_persona WHERE id_rango=r.id_rango) n_mensual,
         (SELECT precio_hora FROM tarifa_rango WHERE id_rango=r.id_rango) precio_hora
         FROM rango r ORDER BY r.codigo""").fetchall()
     return render_template_string(BASE + r"""
@@ -960,15 +962,26 @@ def rangos():
 </div>
 <div class="col-md-8">
   <div class="card"><div class="card-body p-0">
-  <table class="table table-hover mb-0 table-sm">
-    <thead><tr><th>Código</th><th>Nombre</th><th>Descripción</th><th>Asignaciones</th><th>Precio/h (€)</th></tr></thead>
+  <table class="table table-hover mb-0 table-sm align-middle">
+    <thead><tr><th>Código</th><th>Nombre</th><th>Descripción</th><th title="Personas con este rango en su historial">Uso</th><th>Precio/h (€)</th><th></th></tr></thead>
     <tbody>
     {% for r in rangos %}
+    {% set en_uso = r.n_hist + r.n_diario + r.n_mensual %}
+    {% set protegido = r.codigo == 'SIN_ESPECIFICAR' %}
     <tr>
-      <td class="font-monospace fw-bold">{{ r.codigo }}</td>
+      <td class="font-monospace fw-bold">{{ r.codigo }}
+        {% if protegido %}<span class="badge bg-secondary" style="font-size:.6rem" title="Rango de sistema, usado como valor por defecto">sistema</span>{% endif %}
+      </td>
       <td>{{ r.nombre }}</td>
       <td class="text-muted">{{ r.descripcion }}</td>
-      <td>{{ r.n }}</td>
+      <td>
+        {% if en_uso %}
+        <span class="badge bg-warning text-dark" title="Historial: {{ r.n_hist }} · Diario: {{ r.n_diario }} · Mensual: {{ r.n_mensual }}">
+          {{ en_uso }} registro(s)</span>
+        {% else %}
+        <span class="text-muted small">sin uso</span>
+        {% endif %}
+      </td>
       <td>
         <form method="post" action="/rangos/{{ r.id_rango }}/tarifa" class="d-flex gap-1">
           <input type="number" name="precio_hora" class="form-control form-control-sm" step="0.01" min="0"
@@ -976,13 +989,30 @@ def rangos():
           <button class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-check"></i></button>
         </form>
       </td>
+      <td class="text-end">
+        {% if protegido %}
+        <button class="btn btn-sm btn-outline-secondary py-0 disabled" title="Rango de sistema: no se puede eliminar" disabled>
+          <i class="bi bi-trash"></i></button>
+        {% elif en_uso %}
+        <button class="btn btn-sm btn-outline-secondary py-0 disabled"
+                title="En uso ({{ en_uso }} registro(s)): reasigna esas personas/líneas a otro rango antes de poder eliminarlo" disabled>
+          <i class="bi bi-trash"></i></button>
+        {% else %}
+        <form method="post" action="/rangos/{{ r.id_rango }}/eliminar" class="d-inline"
+              onsubmit="return confirm('¿Eliminar el rango {{ r.codigo }}? No tiene ningún uso registrado, así que es seguro, pero no se puede deshacer.')">
+          <button class="btn btn-sm btn-outline-danger py-0"><i class="bi bi-trash"></i></button>
+        </form>
+        {% endif %}
+      </td>
     </tr>
     {% endfor %}
     </tbody>
   </table></div></div>
   <p class="text-muted small mt-2"><i class="bi bi-info-circle"></i> El precio/hora de un rango se usa en
     <a href="/informes/costes">Informes → Costes</a> salvo que la persona tenga un precio propio
-    (<em>override</em>) definido en su ficha. No se muestra en el diario ni en el mensual operativo.</p>
+    (<em>override</em>) definido en su ficha. No se muestra en el diario ni en el mensual operativo.
+    Solo se puede eliminar un rango si no tiene ningún uso registrado (ni en el historial de personas, ni en
+    partes diarios, ni en mensuales cerrados); en caso contrario, reasigna primero esos registros a otro rango.</p>
 </div></div>
 {% endblock %}
 """, rangos=rows)
@@ -998,6 +1028,42 @@ def rango_nuevo():
             get_db().execute('INSERT INTO rango(codigo,nombre,descripcion) VALUES(?,?,?)', [cod,nom,desc])
             get_db().commit(); flash(f'Rango {cod} creado.', 'success')
         except Exception as e: flash(f'Error: {e}', 'error')
+    return redirect(url_for('rangos'))
+
+@app.route('/rangos/<int:id_rango>/eliminar', methods=['POST'])
+def rango_eliminar(id_rango):
+    """
+    Borrado seguro de un rango: nunca deja huérfanos ni rompe el histórico.
+    Se bloquea si el rango tiene cualquier uso (historial de personas, líneas
+    de diario o snapshots de mensual) o si es el rango de sistema
+    'SIN_ESPECIFICAR' (usado como valor por defecto en toda la app).
+    """
+    db = get_db()
+    r = db.execute('SELECT * FROM rango WHERE id_rango=?', [id_rango]).fetchone()
+    if not r:
+        flash('Rango no encontrado.', 'error'); return redirect(url_for('rangos'))
+    if r['codigo'] == 'SIN_ESPECIFICAR':
+        flash('"Sin especificar" es el rango por defecto del sistema y no se puede eliminar.', 'error')
+        return redirect(url_for('rangos'))
+
+    n_hist    = db.execute('SELECT count(*) n FROM persona_rango WHERE id_rango=?', [id_rango]).fetchone()['n']
+    n_diario  = db.execute('SELECT count(*) n FROM diario_linea  WHERE id_rango=?', [id_rango]).fetchone()['n']
+    n_mensual = db.execute('SELECT count(*) n FROM mensual_persona WHERE id_rango=?', [id_rango]).fetchone()['n']
+    if n_hist or n_diario or n_mensual:
+        flash(f'No se puede eliminar "{r["codigo"]}": está en uso ({n_hist} en historial de personas, '
+             f'{n_diario} en líneas de diario, {n_mensual} en snapshots mensuales cerrados). '
+             f'Reasigna esos registros a otro rango antes de eliminarlo.', 'error')
+        return redirect(url_for('rangos'))
+
+    try:
+        db.execute('DELETE FROM tarifa_rango WHERE id_rango=?', [id_rango])  # por claridad; ON DELETE CASCADE ya lo haría
+        db.execute('DELETE FROM rango WHERE id_rango=?', [id_rango])
+        db.commit()
+        flash(f'Rango "{r["codigo"]}" eliminado.', 'success')
+    except sqlite3.IntegrityError:
+        # red de seguridad adicional por si algo lo referencia y no lo habíamos contado arriba
+        db.rollback()
+        flash(f'No se puede eliminar "{r["codigo"]}": todavía hay registros que lo referencian.', 'error')
     return redirect(url_for('rangos'))
 
 @app.route('/rangos/<int:id_rango>/tarifa', methods=['POST'])
