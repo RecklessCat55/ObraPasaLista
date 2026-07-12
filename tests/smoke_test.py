@@ -67,7 +67,7 @@ def main():
     m = re.search(r"documentacion/carpeta/(\d+)/subir", doc.text)
     assert m, "No se encontró el formulario de subida de archivos"
     check("subir archivo", s.post(f"{BASE}/obra/1/documentacion/carpeta/{m.group(1)}/subir",
-          files={"archivo": ("nota.txt", b"contenido de prueba", "text/plain")}))
+          files=[("archivos", ("nota.txt", b"contenido de prueba", "text/plain"))]))
     print("  -> documentación OK")
 
     # 3) estado de obra: debería listar el evento de auditoría más reciente

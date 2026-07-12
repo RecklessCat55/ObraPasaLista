@@ -1655,29 +1655,55 @@ def doc_archivo_subir(id_obra, id_carpeta):
         _chk_obra_activa(id_obra)
         carpeta = db.execute('SELECT * FROM carpeta_obra WHERE id_carpeta=? AND id_obra=?', [id_carpeta, id_obra]).fetchone()
         if not carpeta: raise ValueError('Carpeta no encontrada.')
-        f = request.files.get('archivo')
-        if not f or not f.filename: raise ValueError('Selecciona un archivo.')
-        nombre_seguro = secure_filename(f.filename) or 'archivo'
+
+        # Aceptamos tanto el campo nuevo "archivos" (con multiple) como el
+        # antiguo "archivo" (por compatibilidad si algún formulario externo
+        # todavía lo usa), y siempre procesamos una LISTA de ficheros.
+        ficheros = [f for f in request.files.getlist('archivos') if f and f.filename]
+        if not ficheros:
+            f_legacy = request.files.get('archivo')
+            if f_legacy and f_legacy.filename:
+                ficheros = [f_legacy]
+        if not ficheros:
+            raise ValueError('Selecciona al menos un archivo.')
+
         destino_dir = os.path.join(DOCS_DIR, carpeta['ruta_relativa'])
         os.makedirs(destino_dir, exist_ok=True)
-        base, ext = os.path.splitext(nombre_seguro)
-        destino_abs, i = os.path.join(destino_dir, nombre_seguro), 1
-        while os.path.exists(destino_abs):
-            nombre_seguro = f'{base}_{i}{ext}'
-            destino_abs = os.path.join(destino_dir, nombre_seguro)
-            i += 1
-        f.save(destino_abs)
-        ruta_rel = os.path.join(carpeta['ruta_relativa'], nombre_seguro)
-        tipo_mime = f.mimetype or mimetypes.guess_type(nombre_seguro)[0]
-        db.execute('INSERT INTO archivo_obra(id_carpeta,nombre,ruta_relativa,tipo_mime,fecha_subida,notas) VALUES(?,?,?,?,?,?)',
-                  [id_carpeta, f.filename, ruta_rel, tipo_mime,
-                   datetime.now().strftime('%Y-%m-%d %H:%M:%S'), request.form.get('notas','').strip()])
+        notas = request.form.get('notas','').strip()
+        subidos, fallidos = [], []
+
+        for f in ficheros:
+            try:
+                nombre_seguro = secure_filename(f.filename) or 'archivo'
+                base, ext = os.path.splitext(nombre_seguro)
+                destino_abs, i = os.path.join(destino_dir, nombre_seguro), 1
+                while os.path.exists(destino_abs):
+                    nombre_seguro = f'{base}_{i}{ext}'
+                    destino_abs = os.path.join(destino_dir, nombre_seguro)
+                    i += 1
+                f.save(destino_abs)
+                ruta_rel = os.path.join(carpeta['ruta_relativa'], nombre_seguro)
+                tipo_mime = f.mimetype or mimetypes.guess_type(nombre_seguro)[0]
+                db.execute('INSERT INTO archivo_obra(id_carpeta,nombre,ruta_relativa,tipo_mime,fecha_subida,notas) VALUES(?,?,?,?,?,?)',
+                          [id_carpeta, f.filename, ruta_rel, tipo_mime,
+                           datetime.now().strftime('%Y-%m-%d %H:%M:%S'), notas])
+                subidos.append(f.filename)
+            except Exception as e:
+                fallidos.append((f.filename, str(e)))
         db.commit()
-        flash(f'Archivo "{f.filename}" subido.', 'success')
+
+        if subidos:
+            if len(subidos) == 1:
+                flash(f'Archivo "{subidos[0]}" subido.', 'success')
+            else:
+                flash(f'{len(subidos)} archivos subidos: {", ".join(subidos)}.', 'success')
+        if fallidos:
+            detalle = '; '.join(f'{n}: {m}' for n, m in fallidos)
+            flash(f'{len(fallidos)} archivo(s) no se pudieron subir — {detalle}', 'error')
     except ValueError as e:
         flash(str(e), 'error')
     except Exception as e:
-        flash(f'Error al subir el archivo: {e}', 'error')
+        flash(f'Error al subir los archivos: {e}', 'error')
     return redirect(url_for('obra_documentacion', id_obra=id_obra))
 
 @app.route('/documentacion/archivo/<int:id_archivo>/descargar')
@@ -1756,16 +1782,16 @@ _DOC_TPL = r"""
       </ul>
       {% if obra.estado != 'finalizada' %}
       <form method="post" action="/obra/{{ obra.id_obra }}/documentacion/carpeta/{{ sc.id_carpeta }}/subir" enctype="multipart/form-data" class="d-flex gap-1">
-        <input type="file" name="archivo" class="form-control form-control-sm" required>
-        <button class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-upload"></i></button>
+        <input type="file" name="archivos" multiple class="form-control form-control-sm" required title="Puedes seleccionar varios archivos a la vez">
+        <button class="btn btn-sm btn-outline-secondary py-0" title="Subir"><i class="bi bi-upload"></i></button>
       </form>
       {% endif %}
     </div>
     {% endfor %}
     {% if obra.estado != 'finalizada' %}
     <form method="post" action="/obra/{{ obra.id_obra }}/documentacion/carpeta/{{ c.id_carpeta }}/subir" enctype="multipart/form-data" class="d-flex gap-1">
-      <input type="file" name="archivo" class="form-control form-control-sm" required>
-      <button class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-upload"></i></button>
+      <input type="file" name="archivos" multiple class="form-control form-control-sm" required title="Puedes seleccionar varios archivos a la vez">
+      <button class="btn btn-sm btn-outline-secondary py-0" title="Subir"><i class="bi bi-upload"></i></button>
     </form>
     {% endif %}
   </div></div>
@@ -2327,6 +2353,20 @@ def diario_asignacion_masiva(id_diario):
             flash('Selecciona una empresa y al menos una persona.', 'error')
             return redirect(url_for('diario_asignacion_masiva', id_diario=id_diario))
 
+        # Defensa en profundidad: no confiamos solo en que el JS del navegador
+        # haya deshabilitado los checkboxes de otras empresas. Si llega algún
+        # id de persona que no pertenece a la empresa seleccionada, lo
+        # ignoramos en vez de insertar una línea inconsistente.
+        ids_validas = {p['id_persona'] for p in pers_x_emp.get(id_emp, [])}
+        ids_ignoradas = [i for i in ids_p if i not in ids_validas]
+        ids_p = [i for i in ids_p if i in ids_validas]
+        if ids_ignoradas:
+            flash(f'{len(ids_ignoradas)} selección(es) ignoradas por no pertenecer a la empresa elegida '
+                 f'(revisa si cambiaste de empresa después de marcar personas).', 'warning')
+        if not ids_p:
+            flash('Ninguna de las personas seleccionadas pertenece a la empresa elegida.', 'error')
+            return redirect(url_for('diario_asignacion_masiva', id_diario=id_diario))
+
         creadas, bloqueadas = [], []
         for id_per in ids_p:
             per = db.execute('SELECT nombre,apellido1 FROM persona WHERE id_persona=?', [id_per]).fetchone()
@@ -2366,11 +2406,14 @@ def diario_asignacion_masiva(id_diario):
   Asigna la misma jornada (horas, partida, asunto) a varias personas de una misma empresa de una sola vez.
   Se valida el mes cerrado y el límite de horas/día para cada persona individualmente; las que no cumplan quedarán bloqueadas
   y el resto se crearán con normalidad.</div>
+{% if not emps_obra %}
+<div class="alert alert-warning">Esta obra no tiene empresas vinculadas todavía. Añade alguna desde la ficha de obra antes de usar la asignación masiva.</div>
+{% endif %}
 <div class="card"><div class="card-body">
 <form method="post">
   <div class="row g-2 align-items-end mb-3">
     <div class="col-md-3"><label class="form-label small mb-1">Empresa *</label>
-      <select name="id_empresa" id="am-emp" class="form-select form-select-sm" required>
+      <select name="id_empresa" id="am-emp" class="form-select form-select-sm" required {{ 'disabled' if not emps_obra }}>
         <option value="">— Empresa —</option>
         {% for e in emps_obra %}<option value="{{ e.id_empresa }}">{{ e.nombre }}</option>{% endfor %}
       </select></div>
@@ -2385,7 +2428,13 @@ def diario_asignacion_masiva(id_diario):
       <input type="text" name="asunto" class="form-control form-control-sm" placeholder="Trabajos realizados..."></div>
   </div>
 
-  <label class="form-label small mb-1">Personas activas de la empresa seleccionada</label>
+  <div class="d-flex justify-content-between align-items-center mb-1">
+    <label class="form-label small mb-0">Personas activas de la empresa seleccionada</label>
+    <div id="am-todas" style="display:none">
+      <button type="button" id="am-sel-todas" class="btn btn-link btn-sm p-0 me-2">Seleccionar todas</button>
+      <button type="button" id="am-sel-ninguna" class="btn btn-link btn-sm p-0 text-muted">Ninguna</button>
+    </div>
+  </div>
   <div id="am-personas" class="border rounded p-2 mb-3" style="max-height:320px;overflow:auto">
     {% for e in emps_obra %}
     <div class="am-grp" data-emp="{{ e.id_empresa }}" style="display:none">
@@ -2404,20 +2453,48 @@ def diario_asignacion_masiva(id_diario):
     {% endfor %}
     <p class="text-muted small mb-0" id="am-hint">Selecciona una empresa para ver su personal.</p>
   </div>
-  <button type="submit" class="btn btn-opl btn-sm"><i class="bi bi-check2-all"></i> Asignar a los seleccionados</button>
+  <button type="submit" class="btn btn-opl btn-sm" {{ 'disabled' if not emps_obra }}><i class="bi bi-check2-all"></i> Asignar a los seleccionados</button>
 </form>
 </div></div>
 {% endblock %}
 {% block scripts %}
 <script>
-document.getElementById('am-emp').addEventListener('change', function(){
-  document.querySelectorAll('.am-grp').forEach(function(g){
-    const on = g.dataset.emp === this.value;
-    g.style.display = on ? 'block' : 'none';
-    g.querySelectorAll('input[type=checkbox]').forEach(function(cb){ cb.disabled = !on; if(!on) cb.checked = false; });
-  }.bind(this));
-  document.getElementById('am-hint').style.display = this.value ? 'none' : 'block';
-});
+(function(){
+  var sel = document.getElementById('am-emp');
+  if (!sel) return;   // obra sin empresas: no hay nada que sincronizar
+
+  function sync(){
+    var v = sel.value;
+    document.querySelectorAll('.am-grp').forEach(function(g){
+      var on = g.dataset.emp === v;
+      g.style.display = on ? 'block' : 'none';
+      g.querySelectorAll('input[type=checkbox]').forEach(function(cb){
+        cb.disabled = !on;
+        if (!on) cb.checked = false;
+      });
+    });
+    document.getElementById('am-hint').style.display = v ? 'none' : 'block';
+    document.getElementById('am-todas').style.display = v ? 'block' : 'none';
+  }
+
+  document.getElementById('am-sel-todas').addEventListener('click', function(){
+    document.querySelectorAll('.am-grp[data-emp="' + sel.value + '"] input[type=checkbox]:not(:disabled)')
+      .forEach(function(cb){ cb.checked = true; });
+  });
+  document.getElementById('am-sel-ninguna').addEventListener('click', function(){
+    document.querySelectorAll('.am-grp[data-emp="' + sel.value + '"] input[type=checkbox]')
+      .forEach(function(cb){ cb.checked = false; });
+  });
+
+  sel.addEventListener('change', sync);
+  // Si solo hay una empresa vinculada a la obra, la seleccionamos directamente
+  // para no obligar a un clic extra. También cubre el caso de que el
+  // navegador restaure un valor previo (al volver atrás) sin disparar 'change'.
+  {% if emps_obra|length == 1 %}
+  sel.value = '{{ emps_obra[0].id_empresa }}';
+  {% endif %}
+  sync();
+})();
 </script>
 {% endblock %}
 """, obra=obra, d=d, emps_obra=emps_obra, partidas=partidas, pers_x_emp=pers_x_emp)
