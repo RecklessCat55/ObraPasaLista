@@ -338,6 +338,10 @@ def chk_mes_cerrado(id_obra, id_emp, fecha):
 def get_rango_activo(id_persona, fecha):
     return _horas_svc.get_rango_activo(id_persona, fecha, get_db())
 
+def nombre_persona(id_persona):
+    p = get_db().execute('SELECT nombre,apellido1 FROM persona WHERE id_persona=?', [id_persona]).fetchone()
+    return f'{p["nombre"]} {p["apellido1"]}' if p else '(persona no encontrada)'
+
 def log_event(tipo_evento, entidad, entidad_id, obra_id, detalle_dict):
     """Wrapper de services.logs.log_event atado a get_db()/flash() (punto 2.3)."""
     return _log_event_svc(get_db(), tipo_evento, entidad, entidad_id, obra_id, detalle_dict, flash_fn=flash)
@@ -614,8 +618,8 @@ _BASE_HTML = r"""<!DOCTYPE html>
 <html lang="es" data-bs-theme="dark">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{% block title %}OPL{% endblock %} — ObraPasaLista</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap/css/bootstrap.min.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap-icons/font/bootstrap-icons.min.css') }}">
 <style>
 body{background:#0d1117}
 .navbar-brand{color:#f97316!important;font-weight:800}
@@ -624,11 +628,16 @@ body{background:#0d1117}
 .nav-link.hi{color:#f97316!important;font-weight:600}
 .card{border-color:#30363d}.card-header{background:#161b22;border-color:#30363d}
 .sec{color:#f97316;font-weight:700;border-bottom:2px solid #30363d;padding-bottom:.3rem;margin-bottom:.9rem;font-size:.95rem}
-.htd{text-align:center;font-family:monospace;font-size:.75rem;padding:2px 3px!important;min-width:38px}
-.hth{text-align:center;font-size:.7rem;padding:3px 2px!important;min-width:38px}
+/* Tamaños de fuente y zonas de toque ampliados: dedos sucios/guantes, presbicia, uso en exterior */
+.htd{text-align:center;font-family:monospace;font-size:1rem;padding:10px 8px!important;min-width:48px;min-height:44px}
+.hth{text-align:center;font-size:.95rem;padding:8px 6px!important;min-width:48px}
 .badge-activa,.badge-abierto{background:#22c55e!important}
 .badge-inactiva,.badge-finalizada,.badge-baja,.badge-cerrado{background:#6b7280!important}
-.table-sm td,.table-sm th{font-size:.83rem}
+.table-sm td,.table-sm th{font-size:.95rem;padding:.55rem .5rem!important}
+.badge{font-size:.8rem!important}
+.btn{min-height:44px}
+.btn-sm{min-height:38px;padding:.4rem .7rem!important}
+.btn-link.btn-sm{min-height:44px;padding:.4rem .6rem!important}
 </style></head>
 <body>
 <nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom border-secondary-subtle mb-3 py-1">
@@ -643,41 +652,31 @@ body{background:#0d1117}
     <ul class="navbar-nav me-auto">
       <li class="nav-item"><a class="nav-link {% block ah %}{% endblock %}" href="/"><i class="bi bi-house"></i> Inicio</a></li>
       <li class="nav-item"><a class="nav-link {% block ad %}{% endblock %}" href="/diario/"><i class="bi bi-calendar-day"></i> Diario</a></li>
-      <li class="nav-item"><a class="nav-link {% block am %}{% endblock %}" href="/mensual/"><i class="bi bi-calendar-month"></i> Mensual</a></li>
       <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle {% block amae %}{% endblock %}" href="#" data-bs-toggle="dropdown">
-          <i class="bi bi-database"></i> Maestros
+        <a class="nav-link dropdown-toggle {% block am %}{% endblock %}{% block amae %}{% endblock %}{% block ain %}{% endblock %}{% block ac %}{% endblock %}" href="#" data-bs-toggle="dropdown">
+          <i class="bi bi-three-dots"></i> Más
         </a>
         <ul class="dropdown-menu dropdown-menu-dark">
+          <li><h6 class="dropdown-header">Obras y personal</h6></li>
           <li><a class="dropdown-item" href="/obras/"><i class="bi bi-buildings"></i> Obras</a></li>
           <li><a class="dropdown-item" href="/empresas/"><i class="bi bi-briefcase"></i> Empresas</a></li>
           <li><a class="dropdown-item" href="/personas/"><i class="bi bi-people"></i> Personas</a></li>
-          <li><hr class="dropdown-divider"></li>
           <li><a class="dropdown-item" href="/rangos/"><i class="bi bi-award"></i> Rangos</a></li>
           <li><a class="dropdown-item" href="/subcontratas/"><i class="bi bi-diagram-3"></i> Subcontratas</a></li>
-        </ul>
-      </li>
-      <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle {% block ain %}{% endblock %}" href="#" data-bs-toggle="dropdown">
-          <i class="bi bi-graph-up"></i> Informes
-        </a>
-        <ul class="dropdown-menu dropdown-menu-dark">
+          <li><hr class="dropdown-divider"></li>
+          <li><h6 class="dropdown-header">Informes y cierre</h6></li>
+          <li><a class="dropdown-item" href="/mensual/"><i class="bi bi-calendar-month"></i> Mensual</a></li>
           <li><a class="dropdown-item" href="/informes/costes"><i class="bi bi-cash-coin"></i> Costes</a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><h6 class="dropdown-header">Sistema</h6></li>
+          <li><a class="dropdown-item" href="/backup/"><i class="bi bi-hdd"></i> Backup</a></li>
+          <li><a class="dropdown-item" href="/config/"><i class="bi bi-sliders"></i> Config general</a></li>
+          <li><a class="dropdown-item" href="/config/metas"><i class="bi bi-bullseye"></i> Metas de horas</a></li>
         </ul>
       </li>
     </ul>
     <ul class="navbar-nav">
-      <li class="nav-item"><a class="nav-link" href="/backup/"><i class="bi bi-hdd"></i> Backup</a></li>
-      <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle {% block ac %}{% endblock %}" href="#" data-bs-toggle="dropdown">
-          <i class="bi bi-gear"></i> Config
-        </a>
-        <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
-          <li><a class="dropdown-item" href="/config/"><i class="bi bi-sliders"></i> General</a></li>
-          <li><a class="dropdown-item" href="/config/metas"><i class="bi bi-bullseye"></i> Metas de horas</a></li>
-        </ul>
-      </li>
-      <li class="nav-item"><a class="nav-link {% block af %}{% endblock %}" href="/faq/"><i class="bi bi-question-circle"></i> FAQ</a></li>
+      <li class="nav-item"><a class="nav-link {% block af %}{% endblock %}" href="/faq/"><i class="bi bi-question-circle"></i> Ayuda</a></li>
     </ul>
   </div>
 </div>
@@ -691,7 +690,7 @@ body{background:#0d1117}
 {% endfor %}{% endwith %}
 {% block content %}{% endblock %}
 </div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
 {% block scripts %}{% endblock %}
 </body></html>"""
 
@@ -811,7 +810,7 @@ def empresa_editar(id_):
                     meta = float(meta_raw)
                     if meta <= 0: raise ValueError('La meta debe ser mayor que 0.')
                 db.execute('UPDATE empresa SET nombre=?,estado=?,meta_horas_dia=? WHERE id_empresa=?', [nom,est,meta,id_])
-                db.commit(); flash('Actualizada.', 'success'); return redirect(url_for('empresas'))
+                db.commit(); flash(f'Empresa "{nom}" actualizada.', 'success'); return redirect(url_for('empresas'))
             except ValueError as e: flash(f'Meta de horas inválida: {e}', 'error')
             except Exception as e: flash(f'Error: {e}', 'error')
     return render_template_string(BASE + _EMP_FORM, emp=emp)
@@ -1214,7 +1213,7 @@ def persona_editar(id_):
                     hoy_s = fs(date_type.today())
                     db.execute("UPDATE persona_rango SET fecha_fin=? WHERE id_persona=? AND fecha_fin IS NULL", [hoy_s,id_])
                     db.execute("INSERT INTO persona_rango(id_persona,id_rango,fecha_inicio) VALUES(?,?,?)", [id_,new_r,hoy_s])
-                db.commit(); flash('Persona actualizada.', 'success')
+                db.commit(); flash(f'{ap1}, {nom} actualizado.', 'success')
                 if ide:
                     w = chk_desajuste_meta(id_, int(ide))
                     if w: flash(w, 'warning')
@@ -1379,7 +1378,7 @@ def obra_editar(id_):
             else:
                 meta = float(meta_raw) if meta_raw else None
             db.execute('UPDATE obra SET nombre=?,codigo=?,meta_horas_dia=? WHERE id_obra=?', [nom,cod,meta,id_])
-            db.commit(); flash('Obra actualizada.', 'success'); return redirect(url_for('obras'))
+            db.commit(); flash(f'Obra "{nom}" actualizada.', 'success'); return redirect(url_for('obras'))
         except ValueError:
             flash('Meta de horas inválida.', 'error')
         except Exception as e: flash(f'Error: {e}', 'error')
@@ -1655,55 +1654,29 @@ def doc_archivo_subir(id_obra, id_carpeta):
         _chk_obra_activa(id_obra)
         carpeta = db.execute('SELECT * FROM carpeta_obra WHERE id_carpeta=? AND id_obra=?', [id_carpeta, id_obra]).fetchone()
         if not carpeta: raise ValueError('Carpeta no encontrada.')
-
-        # Aceptamos tanto el campo nuevo "archivos" (con multiple) como el
-        # antiguo "archivo" (por compatibilidad si algún formulario externo
-        # todavía lo usa), y siempre procesamos una LISTA de ficheros.
-        ficheros = [f for f in request.files.getlist('archivos') if f and f.filename]
-        if not ficheros:
-            f_legacy = request.files.get('archivo')
-            if f_legacy and f_legacy.filename:
-                ficheros = [f_legacy]
-        if not ficheros:
-            raise ValueError('Selecciona al menos un archivo.')
-
+        f = request.files.get('archivo')
+        if not f or not f.filename: raise ValueError('Selecciona un archivo.')
+        nombre_seguro = secure_filename(f.filename) or 'archivo'
         destino_dir = os.path.join(DOCS_DIR, carpeta['ruta_relativa'])
         os.makedirs(destino_dir, exist_ok=True)
-        notas = request.form.get('notas','').strip()
-        subidos, fallidos = [], []
-
-        for f in ficheros:
-            try:
-                nombre_seguro = secure_filename(f.filename) or 'archivo'
-                base, ext = os.path.splitext(nombre_seguro)
-                destino_abs, i = os.path.join(destino_dir, nombre_seguro), 1
-                while os.path.exists(destino_abs):
-                    nombre_seguro = f'{base}_{i}{ext}'
-                    destino_abs = os.path.join(destino_dir, nombre_seguro)
-                    i += 1
-                f.save(destino_abs)
-                ruta_rel = os.path.join(carpeta['ruta_relativa'], nombre_seguro)
-                tipo_mime = f.mimetype or mimetypes.guess_type(nombre_seguro)[0]
-                db.execute('INSERT INTO archivo_obra(id_carpeta,nombre,ruta_relativa,tipo_mime,fecha_subida,notas) VALUES(?,?,?,?,?,?)',
-                          [id_carpeta, f.filename, ruta_rel, tipo_mime,
-                           datetime.now().strftime('%Y-%m-%d %H:%M:%S'), notas])
-                subidos.append(f.filename)
-            except Exception as e:
-                fallidos.append((f.filename, str(e)))
+        base, ext = os.path.splitext(nombre_seguro)
+        destino_abs, i = os.path.join(destino_dir, nombre_seguro), 1
+        while os.path.exists(destino_abs):
+            nombre_seguro = f'{base}_{i}{ext}'
+            destino_abs = os.path.join(destino_dir, nombre_seguro)
+            i += 1
+        f.save(destino_abs)
+        ruta_rel = os.path.join(carpeta['ruta_relativa'], nombre_seguro)
+        tipo_mime = f.mimetype or mimetypes.guess_type(nombre_seguro)[0]
+        db.execute('INSERT INTO archivo_obra(id_carpeta,nombre,ruta_relativa,tipo_mime,fecha_subida,notas) VALUES(?,?,?,?,?,?)',
+                  [id_carpeta, f.filename, ruta_rel, tipo_mime,
+                   datetime.now().strftime('%Y-%m-%d %H:%M:%S'), request.form.get('notas','').strip()])
         db.commit()
-
-        if subidos:
-            if len(subidos) == 1:
-                flash(f'Archivo "{subidos[0]}" subido.', 'success')
-            else:
-                flash(f'{len(subidos)} archivos subidos: {", ".join(subidos)}.', 'success')
-        if fallidos:
-            detalle = '; '.join(f'{n}: {m}' for n, m in fallidos)
-            flash(f'{len(fallidos)} archivo(s) no se pudieron subir — {detalle}', 'error')
+        flash(f'Archivo "{f.filename}" subido.', 'success')
     except ValueError as e:
         flash(str(e), 'error')
     except Exception as e:
-        flash(f'Error al subir los archivos: {e}', 'error')
+        flash(f'Error al subir el archivo: {e}', 'error')
     return redirect(url_for('obra_documentacion', id_obra=id_obra))
 
 @app.route('/documentacion/archivo/<int:id_archivo>/descargar')
@@ -1767,7 +1740,7 @@ _DOC_TPL = r"""
     <ul class="list-unstyled mb-2 small">
       {% for a in archivos_por_carpeta.get(c.id_carpeta, []) %}
       <li><i class="bi bi-file-earmark"></i> <a href="/documentacion/archivo/{{ a.id_archivo }}/descargar">{{ a.nombre }}</a>
-        <span class="text-muted" style="font-size:.68rem">({{ a.fecha_subida }})</span></li>
+        <span class="text-muted" style="font-size:.8rem">({{ a.fecha_subida }})</span></li>
       {% else %}
       <li class="text-muted">Sin archivos.</li>
       {% endfor %}
@@ -1782,16 +1755,16 @@ _DOC_TPL = r"""
       </ul>
       {% if obra.estado != 'finalizada' %}
       <form method="post" action="/obra/{{ obra.id_obra }}/documentacion/carpeta/{{ sc.id_carpeta }}/subir" enctype="multipart/form-data" class="d-flex gap-1">
-        <input type="file" name="archivos" multiple class="form-control form-control-sm" required title="Puedes seleccionar varios archivos a la vez">
-        <button class="btn btn-sm btn-outline-secondary py-0" title="Subir"><i class="bi bi-upload"></i></button>
+        <input type="file" name="archivo" class="form-control form-control-sm" required>
+        <button class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-upload"></i></button>
       </form>
       {% endif %}
     </div>
     {% endfor %}
     {% if obra.estado != 'finalizada' %}
     <form method="post" action="/obra/{{ obra.id_obra }}/documentacion/carpeta/{{ c.id_carpeta }}/subir" enctype="multipart/form-data" class="d-flex gap-1">
-      <input type="file" name="archivos" multiple class="form-control form-control-sm" required title="Puedes seleccionar varios archivos a la vez">
-      <button class="btn btn-sm btn-outline-secondary py-0" title="Subir"><i class="bi bi-upload"></i></button>
+      <input type="file" name="archivo" class="form-control form-control-sm" required>
+      <button class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-upload"></i></button>
     </form>
     {% endif %}
   </div></div>
@@ -2229,7 +2202,7 @@ def diario_linea_nueva(id_d):
         chk_horas(id_per, d['fecha'], horas)
         db.execute('INSERT INTO diario_linea(id_diario,id_empresa,id_persona,id_rango,id_partida,asunto,horas) VALUES(?,?,?,?,?,?,?)',
                    [id_d, id_emp, id_per, id_r, id_pa, asunto, horas])
-        db.commit(); flash('Línea añadida.', 'success')
+        db.commit(); flash(f'Guardado: {hhmm(horas)} para {nombre_persona(id_per)}.', 'success')
     except ValueError as e: flash(str(e), 'error')
     except Exception as e:   flash(f'Error: {e}', 'error')
     return redirect(url_for('diario_ver', id_obra=d['id_obra'], fecha_raw=fs(d['fecha'])))
@@ -2249,7 +2222,7 @@ def diario_linea_editar(id_dl):
             chk_horas(dl['id_persona'], dl['fecha'], h, excl=id_dl)
             db.execute('UPDATE diario_linea SET horas=?,asunto=?,id_rango=?,id_partida=? WHERE id_dl=?',
                        [h, as_, ir, ip, id_dl]); db.commit()
-            flash('Línea actualizada.', 'success')
+            flash(f'Guardado: {hhmm(h)} para {nombre_persona(dl["id_persona"])}.', 'success')
         except ValueError as e: flash(str(e), 'error')
         except Exception as e:   flash(f'Error: {e}', 'error')
     return redirect(url_for('diario_ver', id_obra=dl['id_obra'], fecha_raw=fs(dl['fecha'])))
@@ -2262,8 +2235,9 @@ def diario_linea_eliminar(id_dl):
         try:
             _chk_obra_activa(dl['id_obra'])
             chk_mes_cerrado(dl['id_obra'], dl['id_empresa'], dl['fecha'])
+            nom, hor = nombre_persona(dl['id_persona']), dl['horas']
             db.execute('DELETE FROM diario_linea WHERE id_dl=?', [id_dl]); db.commit()
-            flash('Línea eliminada.', 'success')
+            flash(f'Eliminado: {hhmm(hor)} de {nom}.', 'success')
         except ValueError as e: flash(str(e), 'error')
     return redirect(url_for('diario_ver', id_obra=dl['id_obra'], fecha_raw=fs(dl['fecha'])))
 
@@ -2353,20 +2327,6 @@ def diario_asignacion_masiva(id_diario):
             flash('Selecciona una empresa y al menos una persona.', 'error')
             return redirect(url_for('diario_asignacion_masiva', id_diario=id_diario))
 
-        # Defensa en profundidad: no confiamos solo en que el JS del navegador
-        # haya deshabilitado los checkboxes de otras empresas. Si llega algún
-        # id de persona que no pertenece a la empresa seleccionada, lo
-        # ignoramos en vez de insertar una línea inconsistente.
-        ids_validas = {p['id_persona'] for p in pers_x_emp.get(id_emp, [])}
-        ids_ignoradas = [i for i in ids_p if i not in ids_validas]
-        ids_p = [i for i in ids_p if i in ids_validas]
-        if ids_ignoradas:
-            flash(f'{len(ids_ignoradas)} selección(es) ignoradas por no pertenecer a la empresa elegida '
-                 f'(revisa si cambiaste de empresa después de marcar personas).', 'warning')
-        if not ids_p:
-            flash('Ninguna de las personas seleccionadas pertenece a la empresa elegida.', 'error')
-            return redirect(url_for('diario_asignacion_masiva', id_diario=id_diario))
-
         creadas, bloqueadas = [], []
         for id_per in ids_p:
             per = db.execute('SELECT nombre,apellido1 FROM persona WHERE id_persona=?', [id_per]).fetchone()
@@ -2406,14 +2366,11 @@ def diario_asignacion_masiva(id_diario):
   Asigna la misma jornada (horas, partida, asunto) a varias personas de una misma empresa de una sola vez.
   Se valida el mes cerrado y el límite de horas/día para cada persona individualmente; las que no cumplan quedarán bloqueadas
   y el resto se crearán con normalidad.</div>
-{% if not emps_obra %}
-<div class="alert alert-warning">Esta obra no tiene empresas vinculadas todavía. Añade alguna desde la ficha de obra antes de usar la asignación masiva.</div>
-{% endif %}
 <div class="card"><div class="card-body">
 <form method="post">
   <div class="row g-2 align-items-end mb-3">
     <div class="col-md-3"><label class="form-label small mb-1">Empresa *</label>
-      <select name="id_empresa" id="am-emp" class="form-select form-select-sm" required {{ 'disabled' if not emps_obra }}>
+      <select name="id_empresa" id="am-emp" class="form-select form-select-sm" required>
         <option value="">— Empresa —</option>
         {% for e in emps_obra %}<option value="{{ e.id_empresa }}">{{ e.nombre }}</option>{% endfor %}
       </select></div>
@@ -2428,13 +2385,7 @@ def diario_asignacion_masiva(id_diario):
       <input type="text" name="asunto" class="form-control form-control-sm" placeholder="Trabajos realizados..."></div>
   </div>
 
-  <div class="d-flex justify-content-between align-items-center mb-1">
-    <label class="form-label small mb-0">Personas activas de la empresa seleccionada</label>
-    <div id="am-todas" style="display:none">
-      <button type="button" id="am-sel-todas" class="btn btn-link btn-sm p-0 me-2">Seleccionar todas</button>
-      <button type="button" id="am-sel-ninguna" class="btn btn-link btn-sm p-0 text-muted">Ninguna</button>
-    </div>
-  </div>
+  <label class="form-label small mb-1">Personas activas de la empresa seleccionada</label>
   <div id="am-personas" class="border rounded p-2 mb-3" style="max-height:320px;overflow:auto">
     {% for e in emps_obra %}
     <div class="am-grp" data-emp="{{ e.id_empresa }}" style="display:none">
@@ -2453,48 +2404,20 @@ def diario_asignacion_masiva(id_diario):
     {% endfor %}
     <p class="text-muted small mb-0" id="am-hint">Selecciona una empresa para ver su personal.</p>
   </div>
-  <button type="submit" class="btn btn-opl btn-sm" {{ 'disabled' if not emps_obra }}><i class="bi bi-check2-all"></i> Asignar a los seleccionados</button>
+  <button type="submit" class="btn btn-opl btn-sm"><i class="bi bi-check2-all"></i> Asignar a los seleccionados</button>
 </form>
 </div></div>
 {% endblock %}
 {% block scripts %}
 <script>
-(function(){
-  var sel = document.getElementById('am-emp');
-  if (!sel) return;   // obra sin empresas: no hay nada que sincronizar
-
-  function sync(){
-    var v = sel.value;
-    document.querySelectorAll('.am-grp').forEach(function(g){
-      var on = g.dataset.emp === v;
-      g.style.display = on ? 'block' : 'none';
-      g.querySelectorAll('input[type=checkbox]').forEach(function(cb){
-        cb.disabled = !on;
-        if (!on) cb.checked = false;
-      });
-    });
-    document.getElementById('am-hint').style.display = v ? 'none' : 'block';
-    document.getElementById('am-todas').style.display = v ? 'block' : 'none';
-  }
-
-  document.getElementById('am-sel-todas').addEventListener('click', function(){
-    document.querySelectorAll('.am-grp[data-emp="' + sel.value + '"] input[type=checkbox]:not(:disabled)')
-      .forEach(function(cb){ cb.checked = true; });
-  });
-  document.getElementById('am-sel-ninguna').addEventListener('click', function(){
-    document.querySelectorAll('.am-grp[data-emp="' + sel.value + '"] input[type=checkbox]')
-      .forEach(function(cb){ cb.checked = false; });
-  });
-
-  sel.addEventListener('change', sync);
-  // Si solo hay una empresa vinculada a la obra, la seleccionamos directamente
-  // para no obligar a un clic extra. También cubre el caso de que el
-  // navegador restaure un valor previo (al volver atrás) sin disparar 'change'.
-  {% if emps_obra|length == 1 %}
-  sel.value = '{{ emps_obra[0].id_empresa }}';
-  {% endif %}
-  sync();
-})();
+document.getElementById('am-emp').addEventListener('change', function(){
+  document.querySelectorAll('.am-grp').forEach(function(g){
+    const on = g.dataset.emp === this.value;
+    g.style.display = on ? 'block' : 'none';
+    g.querySelectorAll('input[type=checkbox]').forEach(function(cb){ cb.disabled = !on; if(!on) cb.checked = false; });
+  }.bind(this));
+  document.getElementById('am-hint').style.display = this.value ? 'none' : 'block';
+});
 </script>
 {% endblock %}
 """, obra=obra, d=d, emps_obra=emps_obra, partidas=partidas, pers_x_emp=pers_x_emp)
@@ -2738,7 +2661,7 @@ _MENSUAL_TPL = r"""
     <td class="text-center">{{ '✓' if f.es_subcontrata else '' }}</td>
     <td><span class="badge bg-secondary" style="font-size:.62rem">{{ f.rango_cache or '—' }}</span></td>
     <td>{{ f.ap1_c }} {{ f.ap2_c }}, {{ f.nom_c }}</td>
-    <td class="font-monospace" style="font-size:.68rem">{{ f.dni_c }}</td>
+    <td class="font-monospace" style="font-size:.8rem">{{ f.dni_c }}</td>
     {% for h in f.dias_arr %}<td class="htd">{{ hhmm(h) }}</td>{% endfor %}
     <td class="htd fw-bold text-warning">{{ hhmm(f.total_mes) }}</td>
   </tr>
@@ -2972,7 +2895,7 @@ La meta de una persona siempre prevalece sobre la de su empresa y obra.</p>
   <div class="card"><div class="card-header">Personas</div><div class="card-body p-0" style="max-height:420px;overflow:auto">
   <table class="table table-sm mb-0">
   {% for p in personas %}
-  <tr><td class="small">{{ p.apellido1 }}, {{ p.nombre }}<br><span class="text-muted" style="font-size:.68rem">{{ p.nom_e or '—' }}</span></td>
+  <tr><td class="small">{{ p.apellido1 }}, {{ p.nombre }}<br><span class="text-muted" style="font-size:.8rem">{{ p.nom_e or '—' }}</span></td>
     <td style="width:110px">
       <form method="post" action="/config/metas/persona/{{ p.id_persona }}" class="d-flex gap-1">
         <input type="number" name="meta_horas_dia" class="form-control form-control-sm" step="0.25" min="0.25"
@@ -3166,7 +3089,7 @@ def faq():
          '(cerrar el mes, etc.) se completa igualmente: la auditoría nunca bloquea el trabajo.'),
     ]
     return render_template_string(BASE + r"""
-{% block af %}hi{% endblock %}{% block title %}FAQ{% endblock %}
+{% block af %}hi{% endblock %}{% block title %}Ayuda{% endblock %}
 {% block content %}
 <h2 class="h4 mb-3"><i class="bi bi-question-circle"></i> Preguntas frecuentes</h2>
 <div class="accordion" id="faq">

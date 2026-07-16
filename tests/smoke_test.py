@@ -14,7 +14,7 @@ CÓMO USARLO
 
      rm -rf data docs
      OBRAPL_MODE=test SECRET_KEY=test python -m flask --app app init-db
-     OBRAPL_MODE=test SECRET_KEY=test python -m flask --app app run --port 5099
+     OBRAPL_MODE=test SECRET_KEY=test python -m flask --app app init-db
 
 2) Terminal 2: sembrar algo de datos de ejemplo (empresa, obra, personas...)
    usando la shell de Flask o la propia web en http://127.0.0.1:5099
