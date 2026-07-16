@@ -341,7 +341,25 @@ def get_rango_activo(id_persona, fecha):
 def nombre_persona(id_persona):
     p = get_db().execute('SELECT nombre,apellido1 FROM persona WHERE id_persona=?', [id_persona]).fetchone()
     return f'{p["nombre"]} {p["apellido1"]}' if p else '(persona no encontrada)'
-
+def _uso_persona(id_persona: int) -> dict:
+    """
+    Devuelve nº de usos de una persona en diario, mensual y su historial de rangos.
+    No toca esquema ni FKs, solo hace SELECT COUNT(*).
+    """
+    db = get_db()
+    n_dl = db.execute(
+        'SELECT count(*) c FROM diario_linea WHERE id_persona=?',
+        [id_persona]
+    ).fetchone()['c']
+    n_mp = db.execute(
+        'SELECT count(*) c FROM mensual_persona WHERE id_persona=?',
+        [id_persona]
+    ).fetchone()['c']
+    n_hist = db.execute(
+        'SELECT count(*) c FROM persona_rango WHERE id_persona=?',
+        [id_persona]
+    ).fetchone()['c']
+    return {'diario': n_dl, 'mensual': n_mp, 'hist': n_hist}
 def log_event(tipo_evento, entidad, entidad_id, obra_id, detalle_dict):
     """Wrapper de services.logs.log_event atado a get_db()/flash() (punto 2.3)."""
     return _log_event_svc(get_db(), tipo_evento, entidad, entidad_id, obra_id, detalle_dict, flash_fn=flash)
@@ -1126,17 +1144,64 @@ def personas():
   <tbody>
   {% for p in pers %}
   <tr>
-    <td>{{ p.apellido1 }} {{ p.apellido2 }}, {{ p.nombre }}</td>
+        <td>
+      {{ p.apellido1 }} {{ p.apellido2 }}, {{ p.nombre }}
+      {% if p.apellido1 == 'ANONIMIZADO' %}
+        <span class="badge bg-warning text-dark ms-1" style="font-size:.65rem">
+          anonimizada
+        </span>
+      {% endif %}
+    </td>
     <td class="font-monospace">{{ p.dni }}</td>
     <td>{{ p.nom_e or '—' }}</td>
     <td><span class="badge bg-secondary" style="font-size:.7rem">{{ p.rango_actual or 'SIN_ESPECIFICAR' }}</span></td>
     <td><span class="badge badge-{{ p.estado }}">{{ p.estado }}</span></td>
-    <td class="text-end">
-      <a href="/personas/{{ p.id_persona }}/editar" class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-pencil"></i></a>
-      <form method="post" action="/personas/{{ p.id_persona }}/eliminar" class="d-inline"
-            onsubmit="return confirm('¿Eliminar {{ p.nombre }}?')">
-        <button class="btn btn-sm btn-outline-danger py-0"><i class="bi bi-trash"></i></button>
-      </form>
+        <td class="text-end">
+      <div class="btn-group">
+        <a href="/personas/{{ p.id_persona }}/editar"
+           class="btn btn-sm btn-outline-secondary py-0">
+          <i class="bi bi-pencil"></i>
+        </a>
+
+        <button type="button"
+                class="btn btn-sm btn-outline-secondary dropdown-toggle py-0"
+                data-bs-toggle="dropdown" aria-expanded="false">
+        </button>
+        <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
+
+          <li>
+            <form method="post"
+                  action="/personas/{{ p.id_persona }}/baja"
+                  onsubmit="return confirm('¿Marcar inactiva a {{ p.nombre }}?')">
+              <button class="dropdown-item" type="submit">
+                <i class="bi bi-person-x"></i> Marcar como inactiva
+              </button>
+            </form>
+          </li>
+
+          <li>
+            <form method="post"
+                  action="/personas/{{ p.id_persona }}/anonimizar"
+                  onsubmit="return confirm('Anonimizar a {{ p.nombre }}? Esta acción solo se deshace restaurando un backup.')">
+              <button class="dropdown-item text-warning" type="submit">
+                <i class="bi bi-shield-lock"></i> Anonimizar
+              </button>
+            </form>
+          </li>
+
+          <li><hr class="dropdown-divider"></li>
+
+          <li>
+            <form method="post"
+                  action="/personas/{{ p.id_persona }}/eliminar"
+                  onsubmit="return confirm('Eliminar definitivamente a {{ p.nombre }}? Solo si no tiene histórico.')">
+              <button class="dropdown-item text-danger" type="submit">
+                <i class="bi bi-trash"></i> Eliminar definitivamente
+              </button>
+            </form>
+          </li>
+        </ul>
+      </div>
     </td>
   </tr>
   {% else %}
@@ -1223,12 +1288,99 @@ def persona_editar(id_):
 
 @app.route('/personas/<int:id_>/eliminar', methods=['POST'])
 def persona_eliminar(id_):
+    """
+    Hard delete seguro: solo si NO tiene uso en diarios ni mensuales.
+    Si tiene histórico, se bloquea y se sugiere baja/anonimizar.
+    """
     db = get_db()
-    try:
-        p = db.execute('SELECT nombre||" "||apellido1 n FROM persona WHERE id_persona=?', [id_]).fetchone()
-        db.execute('DELETE FROM persona WHERE id_persona=?', [id_]); db.commit()
-        flash(f'{p["n"]} eliminado.', 'success')
-    except: flash('No se puede eliminar: tiene registros vinculados.', 'error')
+    p = db.execute(
+        'SELECT nombre, apellido1 FROM persona WHERE id_persona=?',
+        [id_]
+    ).fetchone()
+    if not p:
+        flash('Persona no encontrada.', 'error')
+        return redirect(url_for('personas'))
+
+    uso = _uso_persona(id_)
+    if uso['diario'] or uso['mensual']:
+        flash(
+            f'No se puede eliminar: tiene {uso["diario"]} parte(s) diaria(s) y '
+            f'{uso["mensual"]} registro(s) mensual(es). '
+            'Ponla como inactiva o anonimízala.',
+            'error'
+        )
+        return redirect(url_for('personas'))
+
+    # Sin uso en diarios/mensuales: se puede borrar físicamente
+    db.execute('DELETE FROM persona WHERE id_persona=?', [id_])
+    db.commit()
+    flash(f'{p["apellido1"]}, {p["nombre"]} eliminada definitivamente.', 'success')
+    return redirect(url_for('personas'))
+@app.route('/personas/<int:id_>/baja', methods=['POST'])
+def persona_baja(id_):
+    """
+    Baja lógica: estado='inactiva'. No rompe histórico ni FKs.
+    """
+    db = get_db()
+    p = db.execute(
+        "SELECT nombre, apellido1, estado FROM persona WHERE id_persona=?",
+        [id_]
+    ).fetchone()
+    if not p:
+        flash('Persona no encontrada.', 'error')
+        return redirect(url_for('personas'))
+
+    if p['estado'] == 'inactiva':
+        flash('La persona ya está inactiva.', 'info')
+        return redirect(url_for('personas'))
+
+    db.execute(
+        "UPDATE persona SET estado='inactiva' WHERE id_persona=?",
+        [id_]
+    )
+    db.commit()
+    flash(f'{p["apellido1"]}, {p["nombre"]} marcada como inactiva.', 'success')
+    return redirect(url_for('personas'))
+@app.route('/personas/<int:id_>/anonimizar', methods=['POST'])
+def persona_anonimizar(id_):
+    """
+    Anonimiza una persona manteniendo histórico (RGPD-friendly).
+    Marca la persona como inactiva y borra datos identificables.
+    """
+    db = get_db()
+    p = db.execute(
+        "SELECT nombre, apellido1, apellido2, dni FROM persona WHERE id_persona=?",
+        [id_]
+    ).fetchone()
+    if not p:
+        flash('Persona no encontrada.', 'error')
+        return redirect(url_for('personas'))
+
+    uso = _uso_persona(id_)
+    if not (uso['diario'] or uso['mensual']):
+        # Si no tiene histórico, mejor borrarla en vez de anonimizar
+        flash('Esta persona no tiene histórico; elimínala en lugar de anonimizarla.', 'warning')
+        return redirect(url_for('personas'))
+
+    anon_tag = f'ANON_{id_}'
+
+    db.execute("""
+        UPDATE persona
+           SET nombre    = ?,
+               apellido1 = ?,
+               apellido2 = '',
+               dni       = ?,
+               oficio    = '',
+               estado    = 'inactiva'
+         WHERE id_persona=?
+    """, [anon_tag, 'ANONIMIZADO', anon_tag, id_])
+    db.commit()
+
+    flash(
+        f'Persona #{id_} anonimizada. Se mantiene el histórico de horas, '
+        'pero ya no es identificable y no se puede usar en nuevos partes.',
+        'success'
+    )
     return redirect(url_for('personas'))
 
 _PER_FORM = r"""
