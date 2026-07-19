@@ -12,7 +12,7 @@ Variables de entorno soportadas:
   OBRAPL_DOCS_DIR  ruta alternativa para la carpeta de documentación (docs/)
   SECRET_KEY       clave de sesion Flask (si no se define, se genera una aleatoria)
 """
-import os, sqlite3, shutil, calendar, unicodedata, re, csv, io, json, mimetypes
+import os, sys, sqlite3, shutil, calendar, unicodedata, re, csv, io, json, mimetypes
 from datetime import datetime, date as date_type
 from jinja2 import DictLoader
 from flask import (Flask, g, render_template_string, request,
@@ -25,7 +25,14 @@ from services import horas as _horas_svc
 from services.logs import log_event as _log_event_svc
 
 # -- RUTAS / MODO DE ENTORNO (2.1) --
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Si la app corre "congelada" (compilada con PyInstaller), __file__ apunta a una
+# carpeta temporal que PyInstaller borra al cerrar el programa. Usamos
+# sys.executable en ese caso para que la BD, los backups y la documentacion
+# vivan siempre junto al .exe y no se pierdan entre ejecuciones.
+if getattr(sys, 'frozen', False):
+    BASE_DIR = os.path.dirname(os.path.abspath(sys.executable))
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
@@ -507,11 +514,11 @@ def _informe_costes(id_obra, mes_str):
     for r in db.execute(f"""SELECT mp.id_persona, mp.nom_c, mp.ap1_c, mp.ap2_c, mp.empresa_cache, mp.total_mes, {dcols}
                             FROM mensual_persona mp JOIN mensual m ON mp.id_mensual=m.id_mensual
                             WHERE m.id_obra=? AND m.mes=? AND m.estado='cerrado'""",
-                         [id_obra, mes_str]).fetchall():
+                        [id_obra, mes_str]).fetchall():
         precio = _precio_efectivo_persona(r['id_persona']) or 0
         horas = r['total_mes'] or 0
         filas.append(dict(nombre=f"{r['ap1_c']} {r['ap2_c']}, {r['nom_c']}", empresa=r['empresa_cache'],
-                           horas=horas, precio_hora=precio, coste=horas * precio))
+                          horas=horas, precio_hora=precio, coste=horas * precio))
         for i in range(1, days + 1):
             h = r[f'd{i}']
             if h:
@@ -1068,8 +1075,8 @@ def rango_eliminar(id_rango):
     n_mensual = db.execute('SELECT count(*) n FROM mensual_persona WHERE id_rango=?', [id_rango]).fetchone()['n']
     if n_hist or n_diario or n_mensual:
         flash(f'No se puede eliminar "{r["codigo"]}": está en uso ({n_hist} en historial de personas, '
-             f'{n_diario} en líneas de diario, {n_mensual} en snapshots mensuales cerrados). '
-             f'Reasigna esos registros a otro rango antes de eliminarlo.', 'error')
+              f'{n_diario} en líneas de diario, {n_mensual} en snapshots mensuales cerrados). '
+              f'Reasigna esos registros a otro rango antes de eliminarlo.', 'error')
         return redirect(url_for('rangos'))
 
     try:
@@ -1574,8 +1581,8 @@ def obra_rem_partida(id_obra, id_p):
         n_docs = _archivar_docs_partida(id_obra, id_p) if part else 0
         if n_docs:
             log_event('DOC_ARCHIVAR_PARTIDA', 'partida', id_p, id_obra,
-                     {'obra_nombre': db.execute('SELECT nombre FROM obra WHERE id_obra=?', [id_obra]).fetchone()['nombre'],
-                      'partida_codigo': part['codigo'], 'n_archivos': n_docs})
+                      {'obra_nombre': db.execute('SELECT nombre FROM obra WHERE id_obra=?', [id_obra]).fetchone()['nombre'],
+                       'partida_codigo': part['codigo'], 'n_archivos': n_docs})
         db.execute('DELETE FROM partida_obra WHERE id_partida=?', [id_p])
         db.commit()
         if n_docs:
@@ -1821,8 +1828,8 @@ def doc_archivo_subir(id_obra, id_carpeta):
         ruta_rel = os.path.join(carpeta['ruta_relativa'], nombre_seguro)
         tipo_mime = f.mimetype or mimetypes.guess_type(nombre_seguro)[0]
         db.execute('INSERT INTO archivo_obra(id_carpeta,nombre,ruta_relativa,tipo_mime,fecha_subida,notas) VALUES(?,?,?,?,?,?)',
-                  [id_carpeta, f.filename, ruta_rel, tipo_mime,
-                   datetime.now().strftime('%Y-%m-%d %H:%M:%S'), request.form.get('notas','').strip()])
+                   [id_carpeta, f.filename, ruta_rel, tipo_mime,
+                    datetime.now().strftime('%Y-%m-%d %H:%M:%S'), request.form.get('notas','').strip()])
         db.commit()
         flash(f'Archivo "{f.filename}" subido.', 'success')
     except ValueError as e:
@@ -2700,7 +2707,7 @@ def mensual_cerrar(id_m):
                    + dias_vals + [g['total_mes']])
     db.execute("UPDATE mensual SET estado='cerrado' WHERE id_mensual=?", [id_m])
     log_event('CIERRE_MENSUAL', 'mensual', id_m, m['id_obra'],
-             {'obra_nombre': m['nom_o'], 'empresa_id': m['id_empresa'], 'empresa_nombre': m['nom_e'], 'mes': m['mes']})
+              {'obra_nombre': m['nom_o'], 'empresa_id': m['id_empresa'], 'empresa_nombre': m['nom_e'], 'mes': m['mes']})
     db.commit()
     flash('Mes cerrado. Snapshot generado.', 'success')
     return redirect(url_for('mensual_ver', id_m=id_m))
@@ -3163,7 +3170,7 @@ def informes_costes():
 {% endif %}
 {% endblock %}
 """, obras=obras, obra_sel=obra_sel, mes_str=mes_str, filas=filas, dias_tabla=dias_tabla,
-     total_horas=total_horas, total_coste=total_coste, hhmm=hhmm)
+                                  total_horas=total_horas, total_coste=total_coste, hhmm=hhmm)
 
 # -- FAQ --
 @app.route('/faq/')
@@ -3263,7 +3270,29 @@ def faq():
 """, preguntas=preguntas)
 
 # -- MAIN --
+def _abrir_navegador_cuando_listo(url, timeout_s=8):
+    import socket, time, webbrowser
+    fin = time.time() + timeout_s
+    while time.time() < fin:
+        try:
+            with socket.create_connection(('127.0.0.1', 5000), timeout=0.3):
+                break
+        except OSError:
+            time.sleep(0.2)
+    time.sleep(0.4)
+    webbrowser.open(url)
+
 if __name__ == '__main__':
     with app.app_context():
         _init_if_needed()
+    if getattr(sys, 'frozen', False):
+        # Solo para el .exe compilado: abrir el navegador automaticamente y
+        # dar feedback claro en la consola al usuario final (no afecta a
+        # "python app.py" en desarrollo).
+        import threading
+        threading.Thread(target=_abrir_navegador_cuando_listo,
+                         args=('http://127.0.0.1:5000',), daemon=True).start()
+        print('ObraPasaLista esta arrancando...')
+        print('El navegador se abrira solo en http://127.0.0.1:5000')
+        print('Para cerrar la aplicacion, cierra esta ventana.')
     app.run(debug=False, host='127.0.0.1', port=5000)

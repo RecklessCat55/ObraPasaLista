@@ -1,12 +1,42 @@
 # -*- mode: python ; coding: utf-8 -*-
+#
+# Build reproducible del ejecutable ObraPasaLista.
+# Se invoca con:  pyinstaller --noconfirm --clean ObraPasaLista.spec
+# (ver build_obrapasalista.bat, que hace esto automaticamente).
+#
+import os
+from PyInstaller.utils.hooks import collect_all
 
+# SPECPATH lo define PyInstaller automaticamente: carpeta donde vive este .spec
+SRC_DIR = os.path.join(SPECPATH, 'src')
+APP_MAIN = os.path.join(SRC_DIR, 'app.py')
+
+datas = []
+binaries = []
+hiddenimports = []
+
+# Empaquetado robusto del stack de Flask: --collect-all evita errores de
+# "ModuleNotFoundError" en la maquina final, donde el usuario no puede
+# instalar nada por su cuenta si algo falta.
+for _pkg in ('flask', 'jinja2', 'werkzeug', 'click', 'itsdangerous', 'blinker', 'markupsafe'):
+    _d, _b, _h = collect_all(_pkg)
+    datas += _d
+    binaries += _b
+    hiddenimports += _h
+
+# Bootstrap vendorizado (CSS/JS/iconos servidos por Flask como estaticos).
+# No esta en el repo de git (revisar), asi que solo se incluye si existe
+# localmente en la maquina donde se compila.
+static_dir = os.path.join(SRC_DIR, 'static')
+if os.path.isdir(static_dir):
+    datas.append((static_dir, 'static'))
 
 a = Analysis(
-    ['C:\\inteliJ\\ObraPasaLista\\src\\ObraPasaLista v1.0 - app.py'],
-    pathex=[],
-    binaries=[],
-    datas=[],
-    hiddenimports=[],
+    [APP_MAIN],
+    pathex=[SRC_DIR],
+    binaries=binaries,
+    datas=datas,
+    hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
