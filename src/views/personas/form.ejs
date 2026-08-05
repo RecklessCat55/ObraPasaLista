@@ -1,0 +1,74 @@
+<div class="row justify-content-center"><div class="col-lg-6">
+<div class="card"><div class="card-header">
+  <h5 class="mb-0"><%= per ? 'Editar' : 'Nueva' %> persona</h5>
+</div><div class="card-body">
+<form method="post">
+  <div class="row g-2 mb-2">
+    <div class="col-6"><label class="form-label small">Nombre *</label>
+      <input type="text" name="nombre" class="form-control form-control-sm" value="<%= per ? per.nombre : '' %>" required autofocus></div>
+    <div class="col-6"><label class="form-label small">Primer apellido *</label>
+      <input type="text" name="apellido1" class="form-control form-control-sm" value="<%= per ? per.apellido1 : '' %>" required></div>
+  </div>
+  <div class="row g-2 mb-2">
+    <div class="col-6"><label class="form-label small">Segundo apellido</label>
+      <input type="text" name="apellido2" class="form-control form-control-sm" value="<%= per ? per.apellido2 : '' %>"></div>
+    <div class="col-6"><label class="form-label small">DNI / NIE *</label>
+      <input type="text" name="dni" class="form-control form-control-sm" value="<%= per ? per.dni : '' %>" required></div>
+  </div>
+  <div class="row g-2 mb-2">
+    <div class="col-6"><label class="form-label small">Empresa</label>
+      <select name="id_empresa" class="form-select form-select-sm">
+        <option value="">— Sin empresa —</option>
+        <% emps.forEach(function(e) { %><option value="<%= e.id_empresa %>" <%= (per && per.id_empresa===e.id_empresa) ? 'selected' : '' %>><%= e.nombre %></option><% }); %>
+      </select></div>
+    <div class="col-6"><label class="form-label small">Oficio</label>
+      <input type="text" name="oficio" class="form-control form-control-sm" value="<%= per ? per.oficio : '' %>" placeholder="Chapista, Pintor..."></div>
+  </div>
+  <div class="row g-2 mb-2">
+    <div class="col-6"><label class="form-label small">Meta de horas/día <span class="text-muted">(opc.)</span></label>
+      <input type="number" name="meta_horas_dia" class="form-control form-control-sm" step="0.25" min="0.25"
+             value="<%= (per && per.meta_horas_dia !== null && per.meta_horas_dia !== undefined) ? per.meta_horas_dia : '' %>"
+             placeholder="Usar meta de empresa/obra"></div>
+    <div class="col-6"><label class="form-label small">Precio/hora € <span class="text-muted">(opc., override)</span></label>
+      <input type="number" name="precio_hora_override" class="form-control form-control-sm" step="0.01" min="0"
+             value="<%= (per && per.precio_hora_override !== null && per.precio_hora_override !== undefined) ? per.precio_hora_override : '' %>"
+             placeholder="Usar tarifa de su rango"></div>
+  </div>
+  <% if (per) { %>
+  <div class="row g-2 mb-3">
+    <div class="col-6"><label class="form-label small">Estado</label>
+      <select name="estado" class="form-select form-select-sm">
+        <option value="activa"   <%= per.estado==='activa' ? 'selected' : '' %>>Activa</option>
+        <option value="inactiva" <%= per.estado==='inactiva' ? 'selected' : '' %>>Inactiva</option>
+      </select></div>
+    <div class="col-6"><label class="form-label small">Nuevo rango (historial)</label>
+      <select name="id_rango_nuevo" class="form-select form-select-sm">
+        <option value="">— Sin cambio —</option>
+        <% rangos.forEach(function(r) { %>
+        <option value="<%= r.id_rango %>" <%= (ra && r.id_rango===ra.id_rango) ? 'selected' : '' %>><%= r.codigo %> — <%= r.nombre %></option>
+        <% }); %>
+      </select></div>
+  </div>
+  <% if (hist.length) { %>
+  <div class="mb-3">
+    <div class="sec">Historial de rangos</div>
+    <table class="table table-sm table-dark mb-0" style="font-size:.75rem">
+      <thead><tr><th>Rango</th><th>Desde</th><th>Hasta</th></tr></thead>
+      <tbody><% hist.forEach(function(h) { %>
+      <tr><td><%= h.nom_r %></td><td><%= h.fecha_inicio %></td><td><%= h.fecha_fin || '(actual)' %></td></tr>
+      <% }); %></tbody>
+    </table>
+  </div>
+  <% } %>
+  <% } else { %>
+  <div class="mb-3"><label class="form-label small">Rango profesional *</label>
+    <select name="id_rango" class="form-select form-select-sm" required>
+      <option value="">— Selecciona —</option>
+      <% rangos.forEach(function(r) { %><option value="<%= r.id_rango %>"><%= r.codigo %> — <%= r.nombre %></option><% }); %>
+    </select></div>
+  <% } %>
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-opl btn-sm">Guardar</button>
+    <a href="/personas/" class="btn btn-secondary btn-sm">Cancelar</a>
+  </div>
+</form></div></div></div></div>

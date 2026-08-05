@@ -1,0 +1,187 @@
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div>
+    <h2 class="h4 mb-0"><i class="bi bi-calendar-day"></i> <%= obra.nombre %>
+      <span class="badge bg-secondary fw-normal ms-1"><%= obra.codigo %></span>
+    </h2>
+    <small class="text-muted"><%= fecha %></small>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="/diario/" class="btn btn-sm btn-outline-secondary"><i class="bi bi-calendar3"></i></a>
+    <% if (obra.estado !== 'finalizada') { %>
+    <a href="/diario/<%= d.id_diario %>/asignacion-masiva" class="btn btn-sm btn-outline-success">
+      <i class="bi bi-people-fill"></i> Asignación masiva
+    </a>
+    <% if (ant) { %>
+    <form method="post" action="/diario/<%= d.id_diario %>/arrastrar"
+          onsubmit="return confirm('¿Arrastrar personas de <%= ant.fecha %>? Las horas se pondrán a 0.')">
+      <button class="btn btn-sm btn-outline-info">
+        <i class="bi bi-arrow-repeat"></i> Arrastrar de <%= ant.fecha %>
+      </button>
+    </form>
+    <% } %>
+    <% } %>
+  </div>
+</div>
+
+<% if (obra.estado === 'finalizada') { %>
+<div class="alert alert-secondary"><i class="bi bi-lock-fill"></i> Obra finalizada: este parte es de solo lectura.</div>
+<% } %>
+
+<!-- METEO -->
+<div class="card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center py-2">
+    <span>
+      <i class="bi bi-cloud-sun"></i>
+      <strong class="ms-1"><%= m_ico[d.meteo_estado] || '?' %> <%= d.meteo_estado.charAt(0).toUpperCase() + d.meteo_estado.slice(1) %></strong>
+      <% if (d.meteo_temp_c) { %><span class="text-muted ms-2"><%= d.meteo_temp_c %>°C</span><% } %>
+      <% if (d.meteo_detalle) { %><span class="text-muted ms-2">— <%= d.meteo_detalle %></span><% } %>
+    </span>
+    <button class="btn btn-sm btn-outline-secondary py-0" type="button"
+            data-bs-toggle="collapse" data-bs-target="#fmeteo" <%= obra.estado==='finalizada' ? 'style=display:none' : '' %>>
+      <i class="bi bi-pencil"></i>
+    </button>
+  </div>
+  <% if (obra.estado !== 'finalizada') { %>
+  <div class="collapse" id="fmeteo"><div class="card-body py-2">
+    <form method="post" action="/diario/<%= d.id_diario %>/meteo" class="row g-2 align-items-end">
+      <div class="col-auto"><label class="form-label small mb-1">Estado</label>
+        <select name="meteo_estado" class="form-select form-select-sm">
+          <% METEO.forEach(function(kv) { %>
+          <option value="<%= kv[0] %>" <%= d.meteo_estado===kv[0] ? 'selected' : '' %>><%= kv[1] %> <%= kv[0].charAt(0).toUpperCase()+kv[0].slice(1) %></option>
+          <% }); %>
+        </select></div>
+      <div class="col"><label class="form-label small mb-1">Detalle</label>
+        <input type="text" name="meteo_detalle" class="form-control form-control-sm" value="<%= d.meteo_detalle %>" placeholder="Notas..."></div>
+      <div class="col-auto"><label class="form-label small mb-1">°C</label>
+        <input type="number" name="meteo_temp_c" class="form-control form-control-sm" value="<%= d.meteo_temp_c || '' %>" step="0.5" style="width:75px"></div>
+      <div class="col-auto"><button class="btn btn-opl btn-sm">Guardar</button></div>
+    </form>
+  </div></div>
+  <% } %>
+</div>
+
+<!-- TABLA LINEAS -->
+<div class="d-flex align-items-center mb-2 gap-3">
+  <div class="sec mb-0">Personal registrado
+    <span class="badge bg-secondary ms-1"><%= lineas.length %></span>
+    <span class="ms-2 text-muted small fw-normal">Total: <strong><%= hhmm(total) %></strong></span>
+  </div>
+</div>
+
+<% if (lineas.length) { %>
+<div class="card mb-3"><div class="card-body p-0">
+<table class="table table-sm table-hover mb-0">
+  <thead><tr><th>Persona</th><th>Empresa</th><th>Rango</th><th>Partida</th><th>Asunto</th><th class="hth">Horas</th><th class="hth"></th></tr></thead>
+  <tbody>
+  <% lineas.forEach(function(l) { %>
+  <tr>
+    <td><%= l.ap1 %> <%= l.ap2 %>, <%= l.nom_p %><br>
+      <small class="text-muted font-monospace"><%= l.dni %></small></td>
+    <td class="small"><%= l.nom_e %></td>
+    <td><span class="badge bg-secondary" style="font-size:.65rem"><%= l.cod_r || '—' %></span></td>
+    <td class="font-monospace small">
+      <%= l.cod_pa || '—' %>
+      <% if (l.id_partida) { %>
+      <a href="/obra/<%= obra.id_obra %>/documentacion?partida=<%= l.id_partida %>" class="text-muted" title="Ver documentación de la partida">
+        <i class="bi bi-folder2-open"></i></a>
+      <% } %>
+    </td>
+    <td class="small text-muted"><%= l.asunto || '—' %></td>
+    <td class="htd">
+      <% if (obra.estado !== 'finalizada') { %>
+      <button class="btn btn-link btn-sm p-0 text-light fw-bold"
+              data-bs-toggle="collapse" data-bs-target="#ed<%= l.id_dl %>">
+        <%= hhmm(l.horas) %>
+      </button>
+      <% } else { %>
+      <span class="fw-bold"><%= hhmm(l.horas) %></span>
+      <% } %>
+    </td>
+    <td class="text-center">
+      <% if (obra.estado !== 'finalizada') { %>
+      <form method="post" action="/diario/linea/<%= l.id_dl %>/eliminar" class="d-inline"
+            onsubmit="return confirm('¿Eliminar línea?')">
+        <button class="btn btn-sm btn-outline-danger py-0 px-1"><i class="bi bi-x"></i></button>
+      </form>
+      <% } %>
+    </td>
+  </tr>
+  <% if (obra.estado !== 'finalizada') { %>
+  <tr class="collapse" id="ed<%= l.id_dl %>">
+    <td colspan="7" class="bg-dark p-2">
+      <form method="post" action="/diario/linea/<%= l.id_dl %>/editar" class="row g-2 align-items-end">
+        <div class="col-auto"><label class="form-label small mb-1">Horas</label>
+          <input type="number" name="horas" class="form-control form-control-sm" value="<%= l.horas %>"
+                 step="0.25" min="0" max="24" style="width:80px"></div>
+        <div class="col"><label class="form-label small mb-1">Asunto</label>
+          <input type="text" name="asunto" class="form-control form-control-sm" value="<%= l.asunto %>"></div>
+        <div class="col-auto"><label class="form-label small mb-1">Rango</label>
+          <select name="id_rango" class="form-select form-select-sm">
+            <option value="">—</option>
+            <% rangos.forEach(function(r) { %><option value="<%= r.id_rango %>" <%= r.id_rango===l.id_rango ? 'selected' : '' %>><%= r.codigo %></option><% }); %>
+          </select></div>
+        <div class="col-auto"><label class="form-label small mb-1">Partida</label>
+          <select name="id_partida" class="form-select form-select-sm">
+            <option value="">—</option>
+            <% partidas.forEach(function(p) { %><option value="<%= p.id_partida %>" <%= p.id_partida===l.id_partida ? 'selected' : '' %>><%= p.codigo %></option><% }); %>
+          </select></div>
+        <div class="col-auto"><button class="btn btn-opl btn-sm">Actualizar</button></div>
+      </form>
+    </td>
+  </tr>
+  <% } %>
+  <% }); %>
+  </tbody>
+</table></div></div>
+<% } else { %>
+<div class="alert alert-secondary">Sin personal registrado hoy.</div>
+<% } %>
+
+<% if (obra.estado !== 'finalizada') { %>
+<!-- NUEVA LÍNEA -->
+<div class="card"><div class="card-header"><i class="bi bi-plus"></i> Añadir persona</div>
+<div class="card-body">
+<form method="post" action="/diario/<%= d.id_diario %>/linea/nueva">
+  <div class="row g-2 align-items-end">
+    <div class="col-md-3"><label class="form-label small mb-1">Empresa *</label>
+      <select name="id_empresa" id="sel-emp" class="form-select form-select-sm" required>
+        <option value="">— Empresa —</option>
+        <% emps_obra.forEach(function(e) { %><option value="<%= e.id_empresa %>"><%= e.nombre %></option><% }); %>
+      </select></div>
+    <div class="col-md-3"><label class="form-label small mb-1">Persona *</label>
+      <select name="id_persona" id="sel-per" class="form-select form-select-sm" required>
+        <option value="">— Persona —</option>
+      </select></div>
+    <div class="col-md-1"><label class="form-label small mb-1">Horas</label>
+      <input type="number" name="horas" class="form-control form-control-sm" value="8" step="0.25" min="0" max="24" required></div>
+    <div class="col-md-2"><label class="form-label small mb-1">Rango</label>
+      <select name="id_rango" class="form-select form-select-sm">
+        <option value="">— Auto —</option>
+        <% rangos.forEach(function(r) { %><option value="<%= r.id_rango %>"><%= r.codigo %></option><% }); %>
+      </select></div>
+    <div class="col-md-2"><label class="form-label small mb-1">Partida</label>
+      <select name="id_partida" class="form-select form-select-sm">
+        <option value="">—</option>
+        <% partidas.forEach(function(p) { %><option value="<%= p.id_partida %>"><%= p.codigo %> <%= p.descripcion %></option><% }); %>
+      </select></div>
+    <div class="col-12"><label class="form-label small mb-1">Asunto</label>
+      <input type="text" name="asunto" class="form-control form-control-sm" placeholder="Trabajos realizados..."></div>
+    <div class="col-auto"><button type="submit" class="btn btn-opl btn-sm"><i class="bi bi-plus"></i> Añadir</button></div>
+  </div>
+</form>
+</div></div>
+<% } %>
+
+<script>
+const pxe = <%- toJsonScript(pers_x_emp) %>;
+document.getElementById('sel-emp').addEventListener('change', function(){
+  const s = document.getElementById('sel-per');
+  s.innerHTML = '<option value="">— Persona —</option>';
+  (pxe[this.value]||[]).forEach(p => {
+    const o = document.createElement('option');
+    o.value = p.id_persona;
+    o.textContent = p.apellido1+' '+(p.apellido2||'')+', '+p.nombre+' ('+p.dni+')';
+    s.appendChild(o);
+  });
+});
+</script>

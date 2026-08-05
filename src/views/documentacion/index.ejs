@@ -1,0 +1,109 @@
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div>
+    <h2 class="h4 mb-0"><i class="bi bi-folder2-open"></i> Documentación — <%= obra.nombre %></h2>
+    <small class="text-muted">Planos, fotos y PDFs organizados por partida</small>
+  </div>
+  <a href="/obras/<%= obra.id_obra %>/editar" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Ficha de obra</a>
+</div>
+
+<% if (obra.estado === 'finalizada') { %>
+<div class="alert alert-secondary"><i class="bi bi-lock-fill"></i> Obra finalizada: documentación en solo lectura (ver/descargar).</div>
+<% } else { %>
+<div class="card mb-3"><div class="card-header">Nueva carpeta</div><div class="card-body">
+<form method="post" action="/obra/<%= obra.id_obra %>/documentacion/carpeta/nueva" class="row g-2 align-items-end">
+  <div class="col-md-4"><label class="form-label small mb-1">Nombre *</label>
+    <input type="text" name="nombre" class="form-control form-control-sm" required></div>
+  <div class="col-md-4"><label class="form-label small mb-1">Partida</label>
+    <select name="id_partida" class="form-select form-select-sm">
+      <option value="">— General (sin partida) —</option>
+      <% partidas.forEach(function(p) { %><option value="<%= p.id_partida %>" <%= partida_foco===p.id_partida ? 'selected' : '' %>><%= p.codigo %> <%= p.descripcion %></option><% }); %>
+    </select></div>
+  <div class="col-md-3"><label class="form-label small mb-1">Dentro de <span class="text-muted">(opc.)</span></label>
+    <select name="id_padre" class="form-select form-select-sm">
+      <option value="">— Raíz —</option>
+      <% todas_carpetas_sel.forEach(function(c) { %><option value="<%= c.id_carpeta %>"><%= c.nombre %></option><% }); %>
+    </select></div>
+  <div class="col-md-1"><button class="btn btn-opl btn-sm w-100"><i class="bi bi-plus"></i></button></div>
+</form>
+</div></div>
+<% } %>
+
+<% grupos.forEach(function(g) { %>
+<div class="sec <%= (partida_foco && g.partida && g.partida.id_partida===partida_foco) ? 'border-warning' : '' %>">
+  <% if (g.partida) { %><i class="bi bi-bookmark"></i> <%= g.partida.codigo %> — <%= g.partida.descripcion %>
+  <% } else { %><i class="bi bi-archive"></i> General (sin partida asociada)<% } %>
+</div>
+<% if (g.carpetas.length) { %>
+<div class="row g-2 mb-3">
+<% g.carpetas.forEach(function(c) { %>
+<div class="col-md-6">
+  <div class="card h-100"><div class="card-header py-1 d-flex justify-content-between align-items-center">
+    <span class="small"><i class="bi bi-folder-fill text-warning"></i> <%= c.nombre %></span>
+  </div>
+  <div class="card-body py-2">
+    <ul class="list-unstyled mb-2 small">
+      <% var archs = archivos_por_carpeta[c.id_carpeta] || []; %>
+      <% if (archs.length === 0) { %><li class="text-muted">Sin archivos.</li><% } %>
+      <% archs.forEach(function(a) { %>
+      <li><i class="bi bi-file-earmark"></i> <a href="/documentacion/archivo/<%= a.id_archivo %>/descargar"><%= a.nombre %></a>
+        <span class="text-muted" style="font-size:.8rem">(<%= a.fecha_subida %>)</span></li>
+      <% }); %>
+    </ul>
+    <% var subs = subcarpetas_por_padre[c.id_carpeta] || []; %>
+    <% subs.forEach(function(sc) { %>
+    <div class="border-start ps-2 mb-2">
+      <div class="small"><i class="bi bi-folder2"></i> <%= sc.nombre %></div>
+      <ul class="list-unstyled small mb-1">
+        <% var archsSc = archivos_por_carpeta[sc.id_carpeta] || []; %>
+        <% if (archsSc.length === 0) { %><li class="text-muted">Sin archivos.</li><% } %>
+        <% archsSc.forEach(function(a) { %>
+        <li><i class="bi bi-file-earmark"></i> <a href="/documentacion/archivo/<%= a.id_archivo %>/descargar"><%= a.nombre %></a></li>
+        <% }); %>
+      </ul>
+      <% if (obra.estado !== 'finalizada') { %>
+      <form method="post" action="/obra/<%= obra.id_obra %>/documentacion/carpeta/<%= sc.id_carpeta %>/subir" enctype="multipart/form-data" class="d-flex gap-1">
+        <input type="file" name="archivo" class="form-control form-control-sm" required>
+        <button class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-upload"></i></button>
+      </form>
+      <% } %>
+    </div>
+    <% }); %>
+    <% if (obra.estado !== 'finalizada') { %>
+    <form method="post" action="/obra/<%= obra.id_obra %>/documentacion/carpeta/<%= c.id_carpeta %>/subir" enctype="multipart/form-data" class="d-flex gap-1">
+      <input type="file" name="archivo" class="form-control form-control-sm" required>
+      <button class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-upload"></i></button>
+    </form>
+    <% } %>
+  </div></div>
+</div>
+<% }); %>
+</div>
+<% } else { %>
+<p class="text-muted small mb-3">Sin carpetas todavía.</p>
+<% } %>
+<% }); %>
+
+<% if (carpetas_archivadas.length) { %>
+<div class="sec text-muted"><i class="bi bi-archive"></i> Documentación archivada
+  <span class="badge bg-secondary fw-normal"><%= carpetas_archivadas.length %></span>
+</div>
+<p class="text-muted small">Documentación de partidas eliminadas. No se borra nunca: sigue siendo descargable.</p>
+<div class="row g-2 mb-3">
+<% carpetas_archivadas.forEach(function(c) { %>
+<div class="col-md-6">
+  <div class="card border-secondary h-100"><div class="card-header py-1 text-muted small">
+    <i class="bi bi-folder-fill"></i> <%= c.nombre %> <span class="badge bg-secondary">archivada</span>
+  </div>
+  <div class="card-body py-2">
+    <ul class="list-unstyled mb-0 small">
+      <% var archsA = archivos_por_carpeta[c.id_carpeta] || []; %>
+      <% if (archsA.length === 0) { %><li class="text-muted">Sin archivos.</li><% } %>
+      <% archsA.forEach(function(a) { %>
+      <li><i class="bi bi-file-earmark"></i> <a href="/documentacion/archivo/<%= a.id_archivo %>/descargar"><%= a.nombre %></a></li>
+      <% }); %>
+    </ul>
+  </div></div>
+</div>
+<% }); %>
+</div>
+<% } %>

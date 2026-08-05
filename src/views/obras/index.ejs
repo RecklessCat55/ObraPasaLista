@@ -1,0 +1,30 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="h4 mb-0"><i class="bi bi-buildings"></i> Obras</h2>
+  <a href="/obras/nueva" class="btn btn-opl btn-sm"><i class="bi bi-plus"></i> Nueva obra</a>
+</div>
+<div class="card"><div class="card-body p-0">
+<table class="table table-hover mb-0 table-sm">
+  <thead><tr><th>Código</th><th>Nombre</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead>
+  <tbody>
+  <% if (obras.length === 0) { %>
+  <tr><td colspan="4" class="text-center py-4 text-muted">Sin obras.</td></tr>
+  <% } %>
+  <% obras.forEach(function(o) { %>
+  <tr>
+    <td class="font-monospace fw-bold"><%= o.codigo %></td>
+    <td><%= o.nombre %></td>
+    <td><span class="badge badge-<%= o.estado %>"><%= o.estado %></span></td>
+    <td class="text-end">
+      <a href="/obras/<%= o.id_obra %>/estado" class="btn btn-sm btn-outline-warning py-0" title="Estado de obra"><i class="bi bi-clipboard-data"></i></a>
+      <a href="/obra/<%= o.id_obra %>/documentacion" class="btn btn-sm btn-outline-primary py-0" title="Documentación"><i class="bi bi-folder2-open"></i></a>
+      <a href="/obras/<%= o.id_obra %>/editar" class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-pencil"></i></a>
+      <a href="/diario/<%= o.id_obra %>/<%= hoy %>" class="btn btn-sm btn-outline-info py-0"><i class="bi bi-calendar-day"></i></a>
+      <form method="post" action="/obras/<%= o.id_obra %>/eliminar" class="d-inline"
+            onsubmit="return confirm('¿Eliminar obra?')">
+        <button class="btn btn-sm btn-outline-danger py-0"><i class="bi bi-trash"></i></button>
+      </form>
+    </td>
+  </tr>
+  <% }); %>
+  </tbody>
+</table></div></div>

@@ -1,0 +1,26 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="h4 mb-0"><i class="bi bi-briefcase"></i> Empresas</h2>
+  <a href="/empresas/nueva" class="btn btn-opl btn-sm"><i class="bi bi-plus"></i> Nueva</a>
+</div>
+<div class="card"><div class="card-body p-0"><table class="table table-hover mb-0 table-sm">
+  <thead><tr><th>Nombre</th><th>Estado</th><th>Personas</th><th>Obras</th><th class="text-end">Acciones</th></tr></thead>
+  <tbody>
+  <% if (emps.length === 0) { %>
+  <tr><td colspan="5" class="text-center py-4 text-muted">Sin empresas.</td></tr>
+  <% } %>
+  <% emps.forEach(function(e) { %>
+  <tr>
+    <td class="fw-semibold"><%= e.nombre %></td>
+    <td><span class="badge badge-<%= e.estado %>"><%= e.estado %></span></td>
+    <td><%= e.n_p %></td><td><%= e.n_o %></td>
+    <td class="text-end">
+      <a href="/empresas/<%= e.id_empresa %>/editar" class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-pencil"></i></a>
+      <form method="post" action="/empresas/<%= e.id_empresa %>/eliminar" class="d-inline"
+            onsubmit="return confirm('¿Eliminar empresa <%= e.nombre %>?')">
+        <button class="btn btn-sm btn-outline-danger py-0"><i class="bi bi-trash"></i></button>
+      </form>
+    </td>
+  </tr>
+  <% }); %>
+  </tbody>
+</table></div></div>

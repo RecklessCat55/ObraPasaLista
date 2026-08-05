@@ -1,0 +1,86 @@
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <h2 class="h4 mb-0"><i class="bi bi-people"></i> Personas</h2>
+  <div class="d-flex gap-2 flex-wrap">
+    <form method="get" class="d-flex gap-2 align-items-center">
+      <input type="text" name="q" value="<%= q %>" class="form-control form-control-sm" placeholder="Buscar..." style="width:170px">
+      <select name="id_empresa" class="form-select form-select-sm" style="width:160px">
+        <option value="">Todas las empresas</option>
+        <% emps.forEach(function(e) { %><option value="<%= e.id_empresa %>" <%= String(ie)===String(e.id_empresa) ? 'selected' : '' %>><%= e.nombre %></option><% }); %>
+      </select>
+      <button class="btn btn-sm btn-secondary"><i class="bi bi-search"></i></button>
+    </form>
+    <a href="/personas/nueva" class="btn btn-opl btn-sm"><i class="bi bi-plus"></i> Nueva</a>
+  </div>
+</div>
+<div class="card"><div class="card-body p-0">
+<table class="table table-hover mb-0 table-sm">
+  <thead><tr><th>Apellidos, Nombre</th><th>DNI</th><th>Empresa</th><th>Rango</th><th>Estado</th><th class="text-end">Acc.</th></tr></thead>
+  <tbody>
+  <% if (pers.length === 0) { %>
+  <tr><td colspan="6" class="text-center py-4 text-muted">Sin personas.</td></tr>
+  <% } %>
+  <% pers.forEach(function(p) { %>
+  <tr>
+    <td>
+      <%= p.apellido1 %> <%= p.apellido2 %>, <%= p.nombre %>
+      <% if (p.apellido1 === 'ANONIMIZADO') { %>
+        <span class="badge bg-warning text-dark ms-1" style="font-size:.65rem">
+          anonimizada
+        </span>
+      <% } %>
+    </td>
+    <td class="font-monospace"><%= p.dni %></td>
+    <td><%= p.nom_e || '—' %></td>
+    <td><span class="badge bg-secondary" style="font-size:.7rem"><%= p.rango_actual || 'SIN_ESPECIFICAR' %></span></td>
+    <td><span class="badge badge-<%= p.estado %>"><%= p.estado %></span></td>
+    <td class="text-end">
+      <div class="btn-group">
+        <a href="/personas/<%= p.id_persona %>/editar"
+           class="btn btn-sm btn-outline-secondary py-0">
+          <i class="bi bi-pencil"></i>
+        </a>
+
+        <button type="button"
+                class="btn btn-sm btn-outline-secondary dropdown-toggle py-0"
+                data-bs-toggle="dropdown" aria-expanded="false">
+        </button>
+        <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
+
+          <li>
+            <form method="post"
+                  action="/personas/<%= p.id_persona %>/baja"
+                  onsubmit="return confirm('¿Marcar inactiva a <%= p.nombre %>?')">
+              <button class="dropdown-item" type="submit">
+                <i class="bi bi-person-x"></i> Marcar como inactiva
+              </button>
+            </form>
+          </li>
+
+          <li>
+            <form method="post"
+                  action="/personas/<%= p.id_persona %>/anonimizar"
+                  onsubmit="return confirm('Anonimizar a <%= p.nombre %>? Esta acción solo se deshace restaurando un backup.')">
+              <button class="dropdown-item text-warning" type="submit">
+                <i class="bi bi-shield-lock"></i> Anonimizar
+              </button>
+            </form>
+          </li>
+
+          <li><hr class="dropdown-divider"></li>
+
+          <li>
+            <form method="post"
+                  action="/personas/<%= p.id_persona %>/eliminar"
+                  onsubmit="return confirm('Eliminar definitivamente a <%= p.nombre %>? Solo si no tiene histórico.')">
+              <button class="dropdown-item text-danger" type="submit">
+                <i class="bi bi-trash"></i> Eliminar definitivamente
+              </button>
+            </form>
+          </li>
+        </ul>
+      </div>
+    </td>
+  </tr>
+  <% }); %>
+  </tbody>
+</table></div></div>

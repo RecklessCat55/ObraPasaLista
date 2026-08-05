@@ -1,0 +1,29 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="h4 mb-0"><i class="bi bi-house"></i> Panel de control</h2>
+  <span class="text-muted small"><i class="bi bi-calendar3"></i> Hoy: <strong><%= hoy %></strong></span>
+</div>
+<div class="row g-3 mb-4">
+  <% stats.forEach(function(s) { var ico=s[0], col=s[1], val=s[2], lab=s[3]; %>
+  <div class="col-6 col-md-3"><div class="card text-center"><div class="card-body py-3">
+    <div class="fs-2 text-<%= col %>"><i class="bi bi-<%= ico %>"></i></div>
+    <div class="fs-3 fw-bold"><%= val %></div><small class="text-muted"><%= lab %></small>
+  </div></div></div>
+  <% }); %>
+</div>
+<div class="sec"><i class="bi bi-calendar-day"></i> Parte de hoy — acceso rápido</div>
+<div class="row g-2">
+<% if (obras.length === 0) { %>
+<div class="col"><div class="alert alert-info">Sin obras activas. <a href="/obras/nueva">Crea una obra</a>.</div></div>
+<% } %>
+<% obras.forEach(function(ob) { %>
+<div class="col-md-4 col-xl-3"><div class="card"><div class="card-body py-2">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <span class="fw-semibold"><%= ob.nombre %></span>
+    <span class="badge bg-secondary"><%= ob.codigo %></span>
+  </div>
+  <a href="/diario/<%= ob.id_obra %>/<%= hoy %>" class="btn btn-opl btn-sm w-100">
+    <i class="bi bi-calendar-day"></i> Abrir parte
+  </a>
+</div></div></div>
+<% }); %>
+</div>

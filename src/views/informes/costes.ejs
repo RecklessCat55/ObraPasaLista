@@ -1,0 +1,52 @@
+<h2 class="h4 mb-3"><i class="bi bi-cash-coin"></i> Informe de costes</h2>
+<p class="text-muted small"><i class="bi bi-info-circle"></i> Los costes se calculan al vuelo con las tarifas y precios
+  vigentes en este momento; no se almacenan. Vista solo administrativa: no se muestran precios en el diario ni en el mensual operativo.</p>
+<div class="card mb-3"><div class="card-body">
+<form method="get" class="row g-2 align-items-end">
+  <div class="col-md-4"><label class="form-label small mb-1">Obra</label>
+    <select name="id_obra" class="form-select form-select-sm" required>
+      <option value="">— Selecciona —</option>
+      <% obras.forEach(function(o) { %><option value="<%= o.id_obra %>" <%= (obra_sel && o.id_obra===obra_sel.id_obra) ? 'selected' : '' %>><%= o.nombre %></option><% }); %>
+    </select></div>
+  <div class="col-md-3"><label class="form-label small mb-1">Mes</label>
+    <input type="month" name="mes" class="form-control form-control-sm" value="<%= mes_str %>"></div>
+  <div class="col-auto"><button class="btn btn-opl btn-sm">Ver informe</button></div>
+</form>
+</div></div>
+
+<% if (obra_sel) { %>
+<h5 class="mb-2"><%= obra_sel.nombre %> — <%= mes_str %></h5>
+<div class="row g-3 mb-3">
+  <div class="col-md-6">
+    <div class="card"><div class="card-header">Coste total por persona y mes</div><div class="card-body p-0">
+    <table class="table table-sm mb-0" style="font-size:.78rem">
+      <thead><tr><th>Empresa</th><th>Persona</th><th class="text-end">Horas</th><th class="text-end">€/h</th><th class="text-end">Coste</th></tr></thead>
+      <tbody>
+      <% if (filas.length === 0) { %>
+      <tr><td colspan="5" class="text-center text-muted py-3">Sin actividad este mes.</td></tr>
+      <% } %>
+      <% filas.forEach(function(f) { %>
+      <tr><td class="small"><%= f.empresa %></td><td class="small"><%= f.nombre %></td>
+        <td class="text-end"><%= hhmm(f.horas) %></td>
+        <td class="text-end"><%= f.precio_hora ? f.precio_hora.toFixed(2) : '—' %></td>
+        <td class="text-end fw-bold"><%= f.coste.toFixed(2) %> €</td></tr>
+      <% }); %>
+      </tbody>
+      <tfoot><tr class="table-dark"><th colspan="2">Total</th><th class="text-end"><%= hhmm(total_horas) %></th><th></th>
+        <th class="text-end"><%= total_coste.toFixed(2) %> €</th></tr></tfoot>
+    </table></div></div>
+  </div>
+  <div class="col-md-6">
+    <div class="card"><div class="card-header">Coste total por obra/día</div><div class="card-body p-0" style="max-height:420px;overflow:auto">
+    <table class="table table-sm mb-0" style="font-size:.78rem">
+      <thead><tr><th>Día</th><th class="text-end">Horas</th><th class="text-end">Coste</th></tr></thead>
+      <tbody>
+      <% dias_tabla.forEach(function(dd) { %>
+      <tr><td><%= dd.dia %></td><td class="text-end"><%= hhmm(dd.horas) %></td>
+        <td class="text-end"><%= dd.coste.toFixed(2) %> €</td></tr>
+      <% }); %>
+      </tbody>
+    </table></div></div>
+  </div>
+</div>
+<% } %>

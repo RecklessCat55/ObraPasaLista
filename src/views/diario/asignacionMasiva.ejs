@@ -1,0 +1,62 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="h4 mb-0"><i class="bi bi-people-fill"></i> Asignación masiva — <%= obra.nombre %> <small class="text-muted"><%= d.fecha %></small></h2>
+  <a href="/diario/<%= obra.id_obra %>/<%= d.fecha %>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver al parte</a>
+</div>
+<div class="alert alert-info small"><i class="bi bi-info-circle"></i>
+  Asigna la misma jornada (horas, partida, asunto) a varias personas de una misma empresa de una sola vez.
+  Se valida el mes cerrado y el límite de horas/día para cada persona individualmente; las que no cumplan quedarán bloqueadas
+  y el resto se crearán con normalidad.</div>
+<div class="card"><div class="card-body">
+<form method="post">
+  <div class="row g-2 align-items-end mb-3">
+    <div class="col-md-3"><label class="form-label small mb-1">Empresa *</label>
+      <select name="id_empresa" id="am-emp" class="form-select form-select-sm" required>
+        <option value="">— Empresa —</option>
+        <% emps_obra.forEach(function(e) { %><option value="<%= e.id_empresa %>"><%= e.nombre %></option><% }); %>
+      </select></div>
+    <div class="col-md-2"><label class="form-label small mb-1">Horas comunes *</label>
+      <input type="number" name="horas" class="form-control form-control-sm" value="8" step="0.25" min="0" max="24" required></div>
+    <div class="col-md-3"><label class="form-label small mb-1">Partida común</label>
+      <select name="id_partida" class="form-select form-select-sm">
+        <option value="">—</option>
+        <% partidas.forEach(function(p) { %><option value="<%= p.id_partida %>"><%= p.codigo %> <%= p.descripcion %></option><% }); %>
+      </select></div>
+    <div class="col-md-4"><label class="form-label small mb-1">Asunto común</label>
+      <input type="text" name="asunto" class="form-control form-control-sm" placeholder="Trabajos realizados..."></div>
+  </div>
+
+  <label class="form-label small mb-1">Personas activas de la empresa seleccionada</label>
+  <div id="am-personas" class="border rounded p-2 mb-3" style="max-height:320px;overflow:auto">
+    <% emps_obra.forEach(function(e) {
+       var pers = pers_x_emp[e.id_empresa] || []; %>
+    <div class="am-grp" data-emp="<%= e.id_empresa %>" style="display:none">
+      <% if (pers.length === 0) { %>
+      <p class="text-muted small mb-0">Sin personas activas en esta empresa.</p>
+      <% } %>
+      <% pers.forEach(function(p) { %>
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" name="personas" value="<%= p.id_persona %>"
+               id="am-p<%= p.id_persona %>" disabled>
+        <label class="form-check-label small" for="am-p<%= p.id_persona %>">
+          <%= p.apellido1 %> <%= p.apellido2 %>, <%= p.nombre %> <span class="text-muted">(<%= p.oficio %>)</span>
+        </label>
+      </div>
+      <% }); %>
+    </div>
+    <% }); %>
+    <p class="text-muted small mb-0" id="am-hint">Selecciona una empresa para ver su personal.</p>
+  </div>
+  <button type="submit" class="btn btn-opl btn-sm"><i class="bi bi-check2-all"></i> Asignar a los seleccionados</button>
+</form>
+</div></div>
+
+<script>
+document.getElementById('am-emp').addEventListener('change', function(){
+  document.querySelectorAll('.am-grp').forEach(function(g){
+    const on = g.dataset.emp === this.value;
+    g.style.display = on ? 'block' : 'none';
+    g.querySelectorAll('input[type=checkbox]').forEach(function(cb){ cb.disabled = !on; if(!on) cb.checked = false; });
+  }.bind(this));
+  document.getElementById('am-hint').style.display = this.value ? 'none' : 'block';
+});
+</script>

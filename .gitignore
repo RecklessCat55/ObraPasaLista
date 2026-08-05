@@ -1,35 +1,16 @@
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-.Python
+node_modules/
 
-# Entornos virtuales
-.venv/
-venv/
-env/
+# Bases de datos y backups (datos reales de obra: no van al repo)
+data/*.db
+data/*.db-wal
+data/*.db-shm
+data/backups/*.db
+!data/.gitkeep
+!data/backups/.gitkeep
 
-# Datos de la app (NO subir datos reales de obra) — v1.2: todo vive en src/data/
-src/data/
-app.db
-app.db-journal
-app.db-wal
-app.db-shm
-app_test.db*
-backups/
+# Documentación subida por los usuarios de la app
+docs/*
+!docs/.gitkeep
 
-# Documentación subida por obra/partida (v1.2) — no versionar archivos reales
-src/docs/
-
-# Build de PyInstaller (se regenera con compilar_exe_obra_pasalista.bat)
-build/
-dist/
-
-# IDE
-.idea/
-.vscode/
-*.iml
-
-# OS
+*.log
 .DS_Store
-Thumbs.db

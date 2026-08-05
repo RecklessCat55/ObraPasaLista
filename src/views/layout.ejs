@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es" data-bs-theme="dark">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title><%= title %> — ObraPasaLista</title>
+<link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="/vendor/bootstrap-icons/font/bootstrap-icons.min.css">
+<style>
+body{background:#0d1117}
+.navbar-brand{color:#f97316!important;font-weight:800}
+.btn-opl{background:#f97316;border-color:#f97316;color:#fff}
+.btn-opl:hover,.btn-opl:focus{background:#c2410c;border-color:#c2410c;color:#fff}
+.nav-link.hi{color:#f97316!important;font-weight:600}
+.card{border-color:#30363d}.card-header{background:#161b22;border-color:#30363d}
+.sec{color:#f97316;font-weight:700;border-bottom:2px solid #30363d;padding-bottom:.3rem;margin-bottom:.9rem;font-size:.95rem}
+/* Tamaños de fuente y zonas de toque ampliados: dedos sucios/guantes, presbicia, uso en exterior */
+.htd{text-align:center;font-family:monospace;font-size:1rem;padding:10px 8px!important;min-width:48px;min-height:44px}
+.hth{text-align:center;font-size:.95rem;padding:8px 6px!important;min-width:48px}
+.badge-activa,.badge-abierto{background:#22c55e!important}
+.badge-inactiva,.badge-finalizada,.badge-baja,.badge-cerrado{background:#6b7280!important}
+.table-sm td,.table-sm th{font-size:.95rem;padding:.55rem .5rem!important}
+.badge{font-size:.8rem!important}
+.btn{min-height:44px}
+.btn-sm{min-height:38px;padding:.4rem .7rem!important}
+.btn-link.btn-sm{min-height:44px;padding:.4rem .6rem!important}
+</style></head>
+<body>
+<nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom border-secondary-subtle mb-3 py-1">
+<div class="container-fluid">
+  <a class="navbar-brand" href="/"><i class="bi bi-building-fill"></i> ObraPasaLista
+    <span class="badge bg-secondary fw-light ms-1" style="font-size:.55rem">v1.2</span>
+  </a>
+  <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nb">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+  <div class="collapse navbar-collapse" id="nb">
+    <ul class="navbar-nav me-auto">
+      <li class="nav-item"><a class="nav-link <%= active==='home' ? 'hi' : '' %>" href="/"><i class="bi bi-house"></i> Inicio</a></li>
+      <li class="nav-item"><a class="nav-link <%= active==='diario' ? 'hi' : '' %>" href="/diario/"><i class="bi bi-calendar-day"></i> Diario</a></li>
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle <%= active==='mas' ? 'hi' : '' %>" href="#" data-bs-toggle="dropdown">
+          <i class="bi bi-three-dots"></i> Más
+        </a>
+        <ul class="dropdown-menu dropdown-menu-dark">
+          <li><h6 class="dropdown-header">Obras y personal</h6></li>
+          <li><a class="dropdown-item" href="/obras/"><i class="bi bi-buildings"></i> Obras</a></li>
+          <li><a class="dropdown-item" href="/empresas/"><i class="bi bi-briefcase"></i> Empresas</a></li>
+          <li><a class="dropdown-item" href="/personas/"><i class="bi bi-people"></i> Personas</a></li>
+          <li><a class="dropdown-item" href="/rangos/"><i class="bi bi-award"></i> Rangos</a></li>
+          <li><a class="dropdown-item" href="/subcontratas/"><i class="bi bi-diagram-3"></i> Subcontratas</a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><h6 class="dropdown-header">Informes y cierre</h6></li>
+          <li><a class="dropdown-item" href="/mensual/"><i class="bi bi-calendar-month"></i> Mensual</a></li>
+          <li><a class="dropdown-item" href="/informes/costes"><i class="bi bi-cash-coin"></i> Costes</a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><h6 class="dropdown-header">Sistema</h6></li>
+          <li><a class="dropdown-item" href="/backup/"><i class="bi bi-hdd"></i> Backup</a></li>
+          <li><a class="dropdown-item" href="/config/"><i class="bi bi-sliders"></i> Config general</a></li>
+          <li><a class="dropdown-item" href="/config/metas"><i class="bi bi-bullseye"></i> Metas de horas</a></li>
+        </ul>
+      </li>
+    </ul>
+    <ul class="navbar-nav">
+      <li class="nav-item"><a class="nav-link <%= active==='faq' ? 'hi' : '' %>" href="/faq/"><i class="bi bi-question-circle"></i> Ayuda</a></li>
+    </ul>
+  </div>
+</div>
+</nav>
+<div class="container-fluid px-4">
+<% messages.forEach(function(m) { var cat = m[0], msg = m[1];
+   var cls = cat === 'error' ? 'danger' : (cat === 'success' ? 'success' : (cat === 'warning' ? 'warning' : 'info')); %>
+<div class="alert alert-<%= cls %> alert-dismissible fade show py-2">
+  <%= msg %><button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+<% }); %>
+<%- body %>
+</div>
+<script src="/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+<%- scripts %>
+</body></html>

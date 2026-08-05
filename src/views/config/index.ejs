@@ -1,0 +1,21 @@
+<div class="row justify-content-center"><div class="col-md-5">
+<div class="card"><div class="card-header"><h5 class="mb-0"><i class="bi bi-gear"></i> Configuración</h5></div>
+<div class="card-body">
+  <div class="sec">Límite de horas por persona y día</div>
+  <p class="text-muted small">Si una persona supera este total en un día (sumando todas las obras y empresas), la línea no se guarda.</p>
+  <form method="post" class="mb-3">
+    <div class="input-group input-group-sm">
+      <input type="number" name="limite" class="form-control" value="<%= lim %>" step="0.5" min="0.5">
+      <span class="input-group-text">h/día &nbsp;(ahora: <strong><%= hhmm(lim) %></strong>)</span>
+      <button name="accion" value="guardar" class="btn btn-opl">Guardar</button>
+    </div>
+  </form>
+  <form method="post">
+    <button name="accion" value="reset" class="btn btn-outline-secondary btn-sm"
+            onclick="return confirm('¿Restablecer a 24 h/día?')">
+      <i class="bi bi-arrow-counterclockwise"></i> Restablecer a 24 h/día
+    </button>
+  </form>
+  <hr>
+  <a href="/config/metas" class="btn btn-outline-secondary btn-sm w-100"><i class="bi bi-bullseye"></i> Metas de horas →</a>
+</div></div></div></div>

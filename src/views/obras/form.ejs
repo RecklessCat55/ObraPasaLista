@@ -1,0 +1,88 @@
+<div class="row g-3">
+<div class="col-md-5">
+  <div class="card mb-3"><div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0"><%= ob ? 'Editar' : 'Nueva' %> obra</h5>
+    <% if (ob) { %><span class="badge badge-<%= ob.estado %>"><%= ob.estado %></span><% } %>
+  </div>
+  <div class="card-body">
+  <% if (ob) { %>
+  <div class="d-flex gap-2 mb-3">
+    <a href="/obras/<%= ob.id_obra %>/estado" class="btn btn-outline-warning btn-sm"><i class="bi bi-clipboard-data"></i> Estado de obra</a>
+    <a href="/obra/<%= ob.id_obra %>/documentacion" class="btn btn-outline-primary btn-sm"><i class="bi bi-folder2-open"></i> Documentación</a>
+  </div>
+  <% } %>
+  <form method="post">
+    <div class="row g-2 mb-2">
+      <div class="col-4"><label class="form-label small">Código *</label>
+        <input type="text" name="codigo" class="form-control form-control-sm" value="<%= ob ? ob.codigo : '' %>" required></div>
+      <div class="col-8"><label class="form-label small">Nombre *</label>
+        <input type="text" name="nombre" class="form-control form-control-sm" value="<%= ob ? ob.nombre : '' %>" required autofocus></div>
+    </div>
+    <% if (ob) { %>
+    <div class="mb-3"><label class="form-label small">Meta de horas/día <span class="text-muted">(opc.)</span></label>
+      <input type="number" name="meta_horas_dia" class="form-control form-control-sm" step="0.25" min="0.25"
+             value="<%= (ob.meta_horas_dia !== null && ob.meta_horas_dia !== undefined) ? ob.meta_horas_dia : '' %>"
+             placeholder="8h por defecto" <%= ob.estado==='finalizada' ? 'readonly' : '' %>>
+      <% if (ob.estado==='finalizada') { %><div class="form-text text-warning">Obra finalizada: solo lectura.</div><% } %>
+    </div>
+    <div class="alert alert-secondary small py-2">
+      <i class="bi bi-info-circle"></i> El estado (activa/finalizada) se gestiona desde
+      <a href="/obras/<%= ob.id_obra %>/estado">Estado de obra</a>, donde se comprueban los mensuales abiertos.
+    </div>
+    <% } %>
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-opl btn-sm">Guardar</button>
+      <a href="/obras/" class="btn btn-secondary btn-sm">Cancelar</a>
+    </div>
+  </form></div></div>
+
+  <% if (ob) { %>
+  <!-- Empresas en obra -->
+  <div class="card mb-3"><div class="card-header">Empresas participantes</div><div class="card-body p-0">
+    <table class="table table-sm mb-0">
+      <tbody>
+      <% if (oes.length === 0) { %><tr><td class="text-muted text-center">Sin empresas</td></tr><% } %>
+      <% oes.forEach(function(e) { %>
+      <tr><td><%= e.nombre %></td><td class="text-end">
+        <form method="post" action="/obras/<%= ob.id_obra %>/rem-empresa/<%= e.id_oe %>" class="d-inline">
+          <button class="btn btn-sm btn-outline-danger py-0"><i class="bi bi-x"></i></button>
+        </form></td></tr>
+      <% }); %>
+      </tbody>
+    </table>
+    <% if (emps_disp.length) { %>
+    <form method="post" action="/obras/<%= ob.id_obra %>/add-empresa" class="p-2 d-flex gap-2">
+      <select name="id_empresa" class="form-select form-select-sm">
+        <% emps_disp.forEach(function(e) { %><option value="<%= e.id_empresa %>"><%= e.nombre %></option><% }); %>
+      </select>
+      <button class="btn btn-opl btn-sm"><i class="bi bi-plus"></i></button>
+    </form>
+    <% } %>
+  </div></div>
+
+  <!-- Partidas -->
+  <div class="card"><div class="card-header">Partidas / fases</div><div class="card-body p-0">
+    <table class="table table-sm mb-0">
+      <tbody>
+      <% if (parts.length === 0) { %><tr><td colspan="3" class="text-muted text-center">Sin partidas</td></tr><% } %>
+      <% parts.forEach(function(p) { %>
+      <tr>
+        <td class="font-monospace"><%= p.codigo %></td>
+        <td class="text-muted small"><%= p.descripcion %></td>
+        <td class="text-end">
+          <form method="post" action="/obras/<%= ob.id_obra %>/rem-partida/<%= p.id_partida %>" class="d-inline">
+            <button class="btn btn-sm btn-outline-danger py-0"><i class="bi bi-x"></i></button>
+          </form>
+        </td>
+      </tr>
+      <% }); %>
+      </tbody>
+    </table>
+    <form method="post" action="/obras/<%= ob.id_obra %>/add-partida" class="p-2 d-flex gap-2">
+      <input type="text" name="codigo" class="form-control form-control-sm" placeholder="1.1" style="width:75px">
+      <input type="text" name="descripcion" class="form-control form-control-sm" placeholder="Descripción">
+      <button class="btn btn-opl btn-sm"><i class="bi bi-plus"></i></button>
+    </form>
+  </div></div>
+  <% } %>
+</div></div>

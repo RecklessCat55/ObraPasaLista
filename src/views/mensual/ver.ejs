@@ -1,0 +1,65 @@
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div>
+    <h2 class="h4 mb-0"><i class="bi bi-calendar-month"></i> <%= m.nom_o %> / <%= m.nom_e %>
+      <span class="badge badge-<%= m.estado %> ms-1"><%= m.estado %></span>
+    </h2>
+    <small class="text-muted"><%= m.mes %> — <%= m.cod_o %></small>
+  </div>
+  <div class="d-flex gap-2 flex-wrap align-items-start">
+    <% if (m.estado === 'abierto') { %>
+    <form method="post" action="/mensual/<%= m.id_mensual %>/cerrar"
+          onsubmit="return confirm('¿Cerrar el mes y generar snapshot? El cierre es definitivo (excepto si lo reabriste)')">
+      <button class="btn btn-warning btn-sm"><i class="bi bi-lock"></i> Cerrar mes</button>
+    </form>
+    <% } else { %>
+    <a href="/mensual/<%= m.id_mensual %>/csv" class="btn btn-success btn-sm">
+      <i class="bi bi-download"></i> Exportar CSV</a>
+    <% if (m.estado_obra === 'finalizada') { %>
+    <span class="btn btn-outline-secondary btn-sm disabled"><i class="bi bi-unlock"></i> Reabrir (obra finalizada)</span>
+    <% } else { %>
+    <form method="post" action="/mensual/<%= m.id_mensual %>/reabrir" class="d-flex gap-1"
+          onsubmit="return confirm('¿Reabrir? El snapshot actual se eliminará.')">
+      <input type="text" name="motivo" class="form-control form-control-sm" placeholder="Motivo (opcional)" style="width:180px">
+      <button class="btn btn-outline-warning btn-sm text-nowrap"><i class="bi bi-unlock"></i> Reabrir</button>
+    </form>
+    <% } %>
+    <% } %>
+    <a href="/obras/<%= m.id_obra %>/estado" class="btn btn-outline-warning btn-sm" title="Estado de obra"><i class="bi bi-clipboard-data"></i></a>
+    <a href="/mensual/" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i></a>
+  </div>
+</div>
+
+<% if (filas.length) { %>
+<div class="table-responsive">
+<table class="table table-sm table-bordered mb-0" style="font-size:.74rem">
+  <thead>
+    <tr class="table-dark">
+      <th>Empresa</th><th>Sub</th><th>Rango</th><th>Apellidos, Nombre</th><th>DNI</th>
+      <% dias_num.forEach(function(i) { %><th class="hth"><%= i %></th><% }); %>
+      <th class="hth text-warning">Total</th>
+    </tr>
+  </thead>
+  <tbody>
+  <% var lastSub = -1; %>
+  <% filas.forEach(function(f) { %>
+  <% if (lastSub !== f.es_subcontrata && f.es_subcontrata === 1) { %>
+  <tr><td colspan="<%= 5 + days + 1 %>" class="text-center text-muted py-1 small">
+    <i class="bi bi-diagram-3"></i> Subcontratas
+  </td></tr>
+  <% lastSub = 1; %>
+  <% } %>
+  <tr class="<%= f.es_subcontrata ? 'table-secondary' : '' %>">
+    <td class="small"><%= f.empresa_cache %></td>
+    <td class="text-center"><%= f.es_subcontrata ? '✓' : '' %></td>
+    <td><span class="badge bg-secondary" style="font-size:.62rem"><%= f.rango_cache || '—' %></span></td>
+    <td><%= f.ap1_c %> <%= f.ap2_c %>, <%= f.nom_c %></td>
+    <td class="font-monospace" style="font-size:.8rem"><%= f.dni_c %></td>
+    <% f.dias_arr.forEach(function(h) { %><td class="htd"><%= hhmm(h) %></td><% }); %>
+    <td class="htd fw-bold text-warning"><%= hhmm(f.total_mes) %></td>
+  </tr>
+  <% }); %>
+  </tbody>
+</table></div>
+<% } else { %>
+<div class="alert alert-info">Sin datos. Añade partes diarios primero.</div>
+<% } %>

@@ -1,0 +1,68 @@
+<h2 class="h4 mb-3"><i class="bi bi-award"></i> Rangos profesionales</h2>
+<div class="row g-3">
+<div class="col-md-4">
+  <div class="card"><div class="card-header">Nuevo rango</div><div class="card-body">
+  <form method="post" action="/rangos/nuevo">
+    <div class="mb-2"><label class="form-label small">Código *</label>
+      <input type="text" name="codigo" class="form-control form-control-sm" placeholder="OF1, PEON..." required></div>
+    <div class="mb-2"><label class="form-label small">Nombre *</label>
+      <input type="text" name="nombre" class="form-control form-control-sm" required></div>
+    <div class="mb-3"><label class="form-label small">Descripción</label>
+      <input type="text" name="descripcion" class="form-control form-control-sm"></div>
+    <button type="submit" class="btn btn-opl btn-sm w-100">Crear</button>
+  </form></div></div>
+</div>
+<div class="col-md-8">
+  <div class="card"><div class="card-body p-0">
+  <table class="table table-hover mb-0 table-sm align-middle">
+    <thead><tr><th>Código</th><th>Nombre</th><th>Descripción</th><th title="Personas con este rango en su historial">Uso</th><th>Precio/h (€)</th><th></th></tr></thead>
+    <tbody>
+    <% rangos.forEach(function(r) {
+       var en_uso = r.n_hist + r.n_diario + r.n_mensual;
+       var protegido = r.codigo === 'SIN_ESPECIFICAR'; %>
+    <tr>
+      <td class="font-monospace fw-bold"><%= r.codigo %>
+        <% if (protegido) { %><span class="badge bg-secondary" style="font-size:.6rem" title="Rango de sistema, usado como valor por defecto">sistema</span><% } %>
+      </td>
+      <td><%= r.nombre %></td>
+      <td class="text-muted"><%= r.descripcion %></td>
+      <td>
+        <% if (en_uso) { %>
+        <span class="badge bg-warning text-dark" title="Historial: <%= r.n_hist %> · Diario: <%= r.n_diario %> · Mensual: <%= r.n_mensual %>">
+          <%= en_uso %> registro(s)</span>
+        <% } else { %>
+        <span class="text-muted small">sin uso</span>
+        <% } %>
+      </td>
+      <td>
+        <form method="post" action="/rangos/<%= r.id_rango %>/tarifa" class="d-flex gap-1">
+          <input type="number" name="precio_hora" class="form-control form-control-sm" step="0.01" min="0"
+                 style="width:90px" value="<%= (r.precio_hora !== null && r.precio_hora !== undefined) ? r.precio_hora : '' %>" placeholder="—">
+          <button class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-check"></i></button>
+        </form>
+      </td>
+      <td class="text-end">
+        <% if (protegido) { %>
+        <button class="btn btn-sm btn-outline-secondary py-0 disabled" title="Rango de sistema: no se puede eliminar" disabled>
+          <i class="bi bi-trash"></i></button>
+        <% } else if (en_uso) { %>
+        <button class="btn btn-sm btn-outline-secondary py-0 disabled"
+                title="En uso (<%= en_uso %> registro(s)): reasigna esas personas/líneas a otro rango antes de poder eliminarlo" disabled>
+          <i class="bi bi-trash"></i></button>
+        <% } else { %>
+        <form method="post" action="/rangos/<%= r.id_rango %>/eliminar" class="d-inline"
+              onsubmit="return confirm('¿Eliminar el rango <%= r.codigo %>? No tiene ningún uso registrado, así que es seguro, pero no se puede deshacer.')">
+          <button class="btn btn-sm btn-outline-danger py-0"><i class="bi bi-trash"></i></button>
+        </form>
+        <% } %>
+      </td>
+    </tr>
+    <% }); %>
+    </tbody>
+  </table></div></div>
+  <p class="text-muted small mt-2"><i class="bi bi-info-circle"></i> El precio/hora de un rango se usa en
+    <a href="/informes/costes">Informes → Costes</a> salvo que la persona tenga un precio propio
+    (<em>override</em>) definido en su ficha. No se muestra en el diario ni en el mensual operativo.
+    Solo se puede eliminar un rango si no tiene ningún uso registrado (ni en el historial de personas, ni en
+    partes diarios, ni en mensuales cerrados); en caso contrario, reasigna primero esos registros a otro rango.</p>
+</div></div>

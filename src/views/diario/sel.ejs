@@ -1,0 +1,28 @@
+<h2 class="h4 mb-3"><i class="bi bi-calendar-day"></i> Parte diario</h2>
+<div class="row g-3">
+<div class="col-md-4">
+  <div class="card"><div class="card-body">
+    <form action="/diario/ir" method="get">
+      <div class="mb-3"><label class="form-label">Obra</label>
+        <select name="id_obra" class="form-select" required>
+          <option value="">— Selecciona —</option>
+          <% obras.forEach(function(o) { %><option value="<%= o.id_obra %>"><%= o.codigo %> — <%= o.nombre %></option><% }); %>
+        </select></div>
+      <div class="mb-3"><label class="form-label">Fecha</label>
+        <input type="date" name="fecha" class="form-control" value="<%= hoy %>" required></div>
+      <button type="submit" class="btn btn-opl w-100">Abrir parte</button>
+    </form>
+  </div></div>
+</div>
+<div class="col-md-8">
+  <div class="sec">Acceso rápido — hoy (<%= hoy %>)</div>
+  <div class="row g-2">
+    <% obras.forEach(function(o) { %>
+    <div class="col-6 col-xl-4">
+      <a href="/diario/<%= o.id_obra %>/<%= hoy %>" class="btn btn-outline-secondary btn-sm w-100 text-start py-2">
+        <strong><%= o.nombre %></strong><br><small class="text-muted"><%= o.codigo %></small>
+      </a>
+    </div>
+    <% }); %>
+  </div>
+</div></div>

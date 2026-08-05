@@ -1,0 +1,83 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="h4 mb-0"><i class="bi bi-bullseye"></i> Metas de horas</h2>
+  <a href="/config/" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Config general</a>
+</div>
+<p class="text-muted small">Meta efectiva por jornada: <strong>persona</strong> &gt; <strong>empresa</strong> &gt; <strong>obra</strong> &gt; 8h por defecto.
+La meta de una persona siempre prevalece sobre la de su empresa y obra.</p>
+
+<div class="card mb-3"><div class="card-body">
+  <div class="sec mb-2">Umbral de desajuste persona/empresa</div>
+  <form method="post" action="/config/metas" class="row g-2 align-items-center">
+    <div class="col-auto">
+      <div class="input-group input-group-sm">
+        <input type="number" name="umbral_desajuste_meta" class="form-control" value="<%= umbral %>" step="0.25" min="0">
+        <span class="input-group-text">h (ahora: <%= hhmm(umbral) %>)</span>
+        <button class="btn btn-opl">Guardar</button>
+      </div>
+    </div>
+  </form>
+  <div class="form-text">Si la meta de una persona difiere de la de su empresa en al menos este umbral, se avisa
+    aquí y al vincular la persona a la empresa (no en cada fichaje diario).</div>
+</div></div>
+
+<% if (avisos.length) { %>
+<div class="alert alert-warning">
+  <strong><i class="bi bi-exclamation-triangle"></i> Desajustes detectados:</strong>
+  <ul class="mb-0 small"><% avisos.forEach(function(a) { %><li><%= a %></li><% }); %></ul>
+</div>
+<% } %>
+
+<div class="row g-3">
+<div class="col-md-4">
+  <div class="card"><div class="card-header">Empresas</div><div class="card-body p-0">
+  <table class="table table-sm mb-0">
+  <% empresas.forEach(function(e) { %>
+  <tr><td class="small"><%= e.nombre %></td>
+    <td style="width:110px">
+      <form method="post" action="/config/metas/empresa/<%= e.id_empresa %>" class="d-flex gap-1">
+        <input type="number" name="meta_horas_dia" class="form-control form-control-sm" step="0.25" min="0.25"
+               value="<%= (e.meta_horas_dia !== null && e.meta_horas_dia !== undefined) ? e.meta_horas_dia : '' %>" placeholder="8h">
+        <button class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-check"></i></button>
+      </form>
+    </td>
+  </tr>
+  <% }); %>
+  </table></div></div>
+</div>
+<div class="col-md-4">
+  <div class="card"><div class="card-header">Obras</div><div class="card-body p-0">
+  <table class="table table-sm mb-0">
+  <% obras.forEach(function(o) { %>
+  <tr><td class="small"><%= o.nombre %> <% if (o.estado==='finalizada') { %><span class="badge badge-finalizada">fin.</span><% } %></td>
+    <td style="width:110px">
+      <% if (o.estado === 'finalizada') { %>
+      <span class="small text-muted"><%= (o.meta_horas_dia !== null && o.meta_horas_dia !== undefined) ? hhmm(o.meta_horas_dia) : '—' %> (solo lectura)</span>
+      <% } else { %>
+      <form method="post" action="/config/metas/obra/<%= o.id_obra %>" class="d-flex gap-1">
+        <input type="number" name="meta_horas_dia" class="form-control form-control-sm" step="0.25" min="0.25"
+               value="<%= (o.meta_horas_dia !== null && o.meta_horas_dia !== undefined) ? o.meta_horas_dia : '' %>" placeholder="8h">
+        <button class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-check"></i></button>
+      </form>
+      <% } %>
+    </td>
+  </tr>
+  <% }); %>
+  </table></div></div>
+</div>
+<div class="col-md-4">
+  <div class="card"><div class="card-header">Personas</div><div class="card-body p-0" style="max-height:420px;overflow:auto">
+  <table class="table table-sm mb-0">
+  <% personas.forEach(function(p) { %>
+  <tr><td class="small"><%= p.apellido1 %>, <%= p.nombre %><br><span class="text-muted" style="font-size:.8rem"><%= p.nom_e || '—' %></span></td>
+    <td style="width:110px">
+      <form method="post" action="/config/metas/persona/<%= p.id_persona %>" class="d-flex gap-1">
+        <input type="number" name="meta_horas_dia" class="form-control form-control-sm" step="0.25" min="0.25"
+               value="<%= (p.meta_horas_dia !== null && p.meta_horas_dia !== undefined) ? p.meta_horas_dia : '' %>" placeholder="—">
+        <button class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-check"></i></button>
+      </form>
+    </td>
+  </tr>
+  <% }); %>
+  </table></div></div>
+</div>
+</div>

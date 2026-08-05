@@ -1,0 +1,85 @@
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div>
+    <h2 class="h4 mb-0"><i class="bi bi-clipboard-data"></i> <%= ob.nombre %>
+      <span class="badge bg-secondary fw-normal ms-1"><%= ob.codigo %></span>
+    </h2>
+    <small class="text-muted">Estado administrativo de la obra</small>
+  </div>
+  <a href="/obras/<%= ob.id_obra %>/editar" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Ficha de obra</a>
+</div>
+
+<% if (ob.estado === 'finalizada') { %>
+<div class="alert alert-secondary d-flex justify-content-between align-items-center">
+  <span><i class="bi bi-lock-fill"></i> <strong>OBRA FINALIZADA.</strong> Diarios, mensuales y documentación en solo lectura.</span>
+  <form method="post" action="/obras/<%= ob.id_obra %>/reactivar"
+        onsubmit="return confirm('¿Reactivar la obra <%= ob.nombre %>? Los mensuales seguirán cerrados hasta reabrirlos.')">
+    <button class="btn btn-outline-warning btn-sm"><i class="bi bi-unlock"></i> Reabrir obra</button>
+  </form>
+</div>
+<% } else { %>
+<div class="alert alert-success d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <span><i class="bi bi-unlock-fill"></i> <strong>OBRA ACTIVA.</strong></span>
+  <% if (puede_finalizar) { %>
+  <form method="post" action="/obras/<%= ob.id_obra %>/cerrar"
+        onsubmit="return confirm('¿Finalizar la obra <%= ob.nombre %>? Se bloquearán diarios, mensuales y documentación.')">
+    <button class="btn btn-warning btn-sm"><i class="bi bi-flag"></i> Finalizar obra</button>
+  </form>
+  <% } else { %>
+  <span class="text-muted small"><%= abiertos.length %> mensual(es) abierto(s): ciérralos para poder finalizar la obra.</span>
+  <% } %>
+</div>
+<% } %>
+
+<div class="sec">Mensuales por empresa</div>
+<div class="card mb-4"><div class="card-body p-0">
+<table class="table table-sm table-hover mb-0">
+  <thead><tr><th>Mes</th><th>Empresa</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead>
+  <tbody>
+  <% if (mensuales.length === 0) { %>
+  <tr><td colspan="4" class="text-center py-3 text-muted">Sin mensuales para esta obra.</td></tr>
+  <% } %>
+  <% mensuales.forEach(function(m) { %>
+  <tr>
+    <td class="font-monospace"><%= m.mes %></td>
+    <td><%= m.nom_e %></td>
+    <td><span class="badge badge-<%= m.estado %>"><%= m.estado %></span></td>
+    <td class="text-end">
+      <a href="/mensual/<%= m.id_mensual %>" class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-eye"></i></a>
+      <% if (m.estado==='abierto') { %>
+      <form method="post" action="/mensual/<%= m.id_mensual %>/cerrar" class="d-inline"
+            onsubmit="return confirm('¿Cerrar este mes?')">
+        <button class="btn btn-sm btn-outline-warning py-0" <%= ob.estado==='finalizada' ? 'disabled' : '' %>><i class="bi bi-lock"></i></button>
+      </form>
+      <% } else { %>
+      <form method="post" action="/mensual/<%= m.id_mensual %>/reabrir" class="d-inline"
+            onsubmit="return confirm('¿Reabrir este mes? Se perderá el snapshot actual.')">
+        <button class="btn btn-sm btn-outline-warning py-0" <%= ob.estado==='finalizada' ? 'disabled' : '' %>><i class="bi bi-unlock"></i></button>
+      </form>
+      <% } %>
+    </td>
+  </tr>
+  <% }); %>
+  </tbody>
+</table></div></div>
+
+<div class="sec"><i class="bi bi-journal-text"></i> Actividad administrativa</div>
+<div class="card"><div class="card-body p-0">
+<table class="table table-sm mb-0" style="font-size:.78rem">
+  <thead><tr><th>Fecha</th><th>Evento</th><th>Detalle</th></tr></thead>
+  <tbody>
+  <% if (logs.length === 0) { %>
+  <tr><td colspan="3" class="text-center py-3 text-muted">Sin actividad registrada todavía.</td></tr>
+  <% } %>
+  <% logs.forEach(function(l) { %>
+  <tr>
+    <td class="text-muted font-monospace"><%= l.fecha %></td>
+    <td><span class="badge bg-secondary"><%= l.tipo_evento %></span></td>
+    <td class="small">
+      <% Object.keys(l.detalle_obj).forEach(function(k) { %>
+        <% if (k !== 'obra_id') { %><span class="text-muted"><%= k %>:</span> <%= l.detalle_obj[k] %>&nbsp; <% } %>
+      <% }); %>
+    </td>
+  </tr>
+  <% }); %>
+  </tbody>
+</table></div></div>

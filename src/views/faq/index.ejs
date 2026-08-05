@@ -1,0 +1,17 @@
+<h2 class="h4 mb-3"><i class="bi bi-question-circle"></i> Preguntas frecuentes</h2>
+<div class="accordion" id="faq">
+<% preguntas.forEach(function(qa, idx) {
+   var q = qa[0], a = qa[1], n = idx + 1; %>
+<div class="accordion-item border-secondary">
+  <h2 class="accordion-header">
+    <button class="accordion-button collapsed bg-dark text-light py-2" type="button"
+            data-bs-toggle="collapse" data-bs-target="#fq<%= n %>">
+      <%- q %>
+    </button>
+  </h2>
+  <div id="fq<%= n %>" class="accordion-collapse collapse" data-bs-parent="#faq">
+    <div class="accordion-body text-muted small"><%- a %></div>
+  </div>
+</div>
+<% }); %>
+</div>

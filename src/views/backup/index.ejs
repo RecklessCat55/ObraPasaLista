@@ -1,0 +1,44 @@
+<h2 class="h4 mb-3"><i class="bi bi-hdd"></i> Copias de seguridad</h2>
+<div class="row g-3">
+<div class="col-md-4">
+  <div class="card"><div class="card-header">Crear backup</div><div class="card-body">
+  <form method="post" action="/backup/crear">
+    <div class="mb-2"><label class="form-label small">Contexto (obra)</label>
+      <select name="id_obra" class="form-select form-select-sm">
+        <option value="">Sin contexto (General)</option>
+        <% obras.forEach(function(o) { %><option value="<%= o.id_obra %>"><%= o.codigo %> — <%= o.nombre %></option><% }); %>
+      </select></div>
+    <div class="alert alert-secondary small py-2 mb-3">
+      <i class="bi bi-info-circle"></i> Siempre se copia <strong>toda</strong> la BD,
+      independientemente del contexto.
+    </div>
+    <button type="submit" class="btn btn-opl btn-sm w-100">
+      <i class="bi bi-cloud-download"></i> Crear backup ahora
+    </button>
+  </form></div></div>
+</div>
+<div class="col-md-8">
+  <div class="card"><div class="card-body p-0">
+  <table class="table table-hover mb-0 table-sm">
+    <thead><tr><th>Fichero de backup</th><th class="text-end">Acción</th></tr></thead>
+    <tbody>
+    <% if (bks.length === 0) { %>
+    <tr><td colspan="2" class="text-center py-4 text-muted">Sin backups.</td></tr>
+    <% } %>
+    <% bks.forEach(function(b) { %>
+    <tr>
+      <td class="font-monospace small"><%= b %></td>
+      <td class="text-end">
+        <form method="post" action="/backup/restaurar" class="d-inline"
+              onsubmit="return confirm('ATENCIÓN\n\nRestaurar este backup reemplazará TODOS los datos actuales.\nEs un borrón y cuenta nueva. Los cambios posteriores al backup se perderán.\n\n¿Continuar?')">
+          <input type="hidden" name="nombre" value="<%= b %>">
+          <button class="btn btn-sm btn-outline-warning">
+            <i class="bi bi-arrow-counterclockwise"></i> Restaurar
+          </button>
+        </form>
+      </td>
+    </tr>
+    <% }); %>
+    </tbody>
+  </table></div></div>
+</div></div>
