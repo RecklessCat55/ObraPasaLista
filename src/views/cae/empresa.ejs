@@ -1,0 +1,150 @@
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div>
+    <h2 class="h4 mb-0">
+      <i class="bi bi-building-check"></i> Documentación CAE Subcontrata: <%= e.nombre %>
+    </h2>
+    <span class="badge <%= e.estado==='activa' ? 'bg-success' : 'bg-secondary' %>"><%= e.estado %></span>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="/empresas/<%= e.id_empresa %>/editar" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-building"></i> Ficha empresa
+    </a>
+    <a href="/cae/alertas" class="btn btn-sm btn-outline-primary">
+      <i class="bi bi-bell"></i> Panel alertas
+    </a>
+  </div>
+</div>
+
+<!-- ESTADO GLOBAL DE LA EMPRESA -->
+<div class="card mb-4 border-<%= evaluacion.estado === 'caducado' ? 'danger' : (evaluacion.estado === 'aviso' ? 'warning' : (evaluacion.estado === 'ok' ? 'success' : 'secondary')) %>">
+  <div class="card-body d-flex align-items-center justify-content-between flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-3">
+      <span class="badge <%= evaluacion.badgeClass %> p-3 fs-5">
+        <i class="bi <%= evaluacion.icono %>"></i>
+      </span>
+      <div>
+        <h5 class="mb-1"><%= evaluacion.titulo %></h5>
+        <% if (evaluacion.alertas.length) { %>
+          <ul class="mb-0 ps-3 text-muted small">
+            <% evaluacion.alertas.forEach(function(a) { %>
+              <li><%= a.mensaje %></li>
+            <% }); %>
+          </ul>
+        <% } else { %>
+          <p class="mb-0 text-success small">Toda la documentación obligatoria (TC2, seguros, REA) se encuentra al día.</p>
+        <% } %>
+      </div>
+    </div>
+    <span class="text-muted small">Fecha comprobación: <strong><%= hoy %></strong></span>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- FORMULARIO REGISTRAR DOCUMENTO -->
+  <div class="col-md-5">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-plus-circle"></i> Añadir documento empresa</div>
+      <div class="card-body">
+        <form method="post" action="/cae/empresa/<%= e.id_empresa %>/nuevo">
+          <div class="mb-3">
+            <label class="form-label small">Tipo de documento *</label>
+            <select name="tipo_doc" class="form-select" required>
+              <option value="">Selecciona tipo...</option>
+              <% Object.keys(tipos).forEach(function(k) { %>
+                <option value="<%= k %>"><%= tipos[k] %></option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small">Descripción / Aseguradora / Referencia</label>
+            <input type="text" name="descripcion" class="form-control" placeholder="Ej: Mapfre Póliza RC 2026 / TC2 Mes anterior">
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small">Fecha emisión</label>
+              <input type="date" name="fecha_emision" class="form-control">
+            </div>
+            <div class="col-6">
+              <label class="form-label small">Fecha caducidad</label>
+              <input type="date" name="fecha_caducidad" class="form-control">
+              <div class="form-text small">Dejar en blanco si no caduca.</div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small">Observaciones</label>
+            <textarea name="observaciones" class="form-control" rows="2" placeholder="Notas sobre cobertura, límites..."></textarea>
+          </div>
+          <button class="btn btn-opl w-100">Guardar documento</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- LISTA DE DOCUMENTOS -->
+  <div class="col-md-7">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-file-earmark-text"></i> Documentación registrada</span>
+        <span class="badge bg-secondary"><%= docs.length %></span>
+      </div>
+      <div class="card-body p-0">
+        <% if (docs.length) { %>
+          <div class="table-responsive">
+            <table class="table table-hover table-sm align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Tipo / Referencia</th>
+                  <th>Emisión</th>
+                  <th>Caducidad</th>
+                  <th>Estado</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <% docs.forEach(function(d) { %>
+                  <% 
+                    let statusBadge = 'bg-success';
+                    let statusText = 'En vigor';
+                    if (d.fecha_caducidad && d.fecha_caducidad < hoy) {
+                      statusBadge = 'bg-danger';
+                      statusText = 'Caducado';
+                    } else if (d.fecha_caducidad && d.fecha_caducidad <= (new Date(Date.now() + 15*86400000).toISOString().slice(0,10))) {
+                      statusBadge = 'bg-warning text-dark';
+                      statusText = 'Próximo';
+                    }
+                  %>
+                  <tr>
+                    <td>
+                      <strong><%= tipos[d.tipo_doc] || d.tipo_doc %></strong>
+                      <% if (d.descripcion) { %>
+                        <br><small class="text-muted"><%= d.descripcion %></small>
+                      <% } %>
+                    </td>
+                    <td class="small text-muted"><%= d.fecha_emision || '—' %></td>
+                    <td class="small">
+                      <%= d.fecha_caducidad ? d.fecha_caducidad : '<span class="text-muted">No caduca</span>' %>
+                    </td>
+                    <td>
+                      <span class="badge <%= statusBadge %>"><%= statusText %></span>
+                    </td>
+                    <td class="text-end">
+                      <form method="post" action="/cae/empresa/doc/<%= d.id_doc_empresa %>/eliminar" class="d-inline"
+                            onsubmit="return confirm('¿Eliminar registro de este documento?')">
+                        <button class="btn btn-sm btn-outline-danger py-0 px-1" title="Eliminar"><i class="bi bi-trash"></i></button>
+                      </form>
+                    </td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        <% } else { %>
+          <div class="p-4 text-center text-muted">
+            <i class="bi bi-building display-6"></i>
+            <p class="mt-2 mb-0">No hay documentos de CAE registrados para esta empresa.</p>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>

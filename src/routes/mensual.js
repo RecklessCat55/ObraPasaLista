@@ -9,6 +9,7 @@ const db = require('../db');
 const { renderPage } = require('../middleware/render');
 const { fs: fsDate, hhmm, norm } = require('../services/fechas');
 const { calcularFilasMensual, chkObraActiva } = require('../services/negocio');
+const { generarMensualExcel } = require('../services/excel');
 const { logEvent } = require('../services/logs');
 const { ValidationError } = require('../utils');
 
@@ -106,6 +107,10 @@ router.post('/:id_m/cerrar', (req, res) => {
   if (!m) {
     req.flash('No encontrado.', 'error');
     return res.redirect('/mensual/');
+  }
+  if (m.estado === 'cerrado') {
+    req.flash('Este mes ya está cerrado.', 'warning');
+    return res.redirect(`/mensual/${idM}`);
   }
   const { filas } = calcularFilasMensual(conn, m.id_obra, m.id_empresa, m.mes);
   const dcols = Array.from({ length: 31 }, (_, i) => `d${i + 1}`).join(',');
@@ -239,6 +244,118 @@ router.get('/:id_m/csv', (req, res) => {
   res.set('Content-Type', 'text/csv; charset=utf-8');
   res.set('Content-Disposition', `attachment; filename="${nombre}"`);
   res.send(body);
+});
+
+// EXPORTACIÓN A EXCEL ESTRUCTURADO (SPREADSHEET XML)
+router.get('/:id_m/excel', (req, res) => {
+  const conn = db.getDb();
+  const idM = parseInt(req.params.id_m, 10);
+  const m = conn
+    .prepare(
+      `SELECT m.*, o.nombre nom_o, o.codigo cod_o, e.nombre nom_e
+       FROM mensual m JOIN obra o ON m.id_obra=o.id_obra JOIN empresa e ON m.id_empresa=e.id_empresa
+       WHERE m.id_mensual=?`
+    )
+    .get(idM);
+  if (!m) {
+    req.flash('No encontrado.', 'error');
+    return res.redirect('/mensual/');
+  }
+
+  const year = parseInt(m.mes.slice(0, 4), 10);
+  const month = parseInt(m.mes.slice(5, 7), 10);
+  const days = new Date(year, month, 0).getDate();
+
+  let rows;
+  if (m.estado === 'cerrado') {
+    rows = conn
+      .prepare(
+        `SELECT mp.* FROM mensual_persona mp WHERE mp.id_mensual=?
+         ORDER BY mp.es_subcontrata,mp.empresa_cache,mp.ap1_c,mp.nom_c`
+      )
+      .all(idM);
+  } else {
+    // Si aún está abierto, calculamos al vuelo
+    const filasCalc = calcularFilasMensual(conn, m.id_obra, m.id_empresa, m.mes, days);
+    rows = filasCalc.map((f) => {
+      const row = {
+        empresa_cache: f.empresa_cache,
+        es_subcontrata: f.es_subcontrata,
+        rango_cache: f.rango_cache,
+        ap1_c: f.ap1_c,
+        ap2_c: f.ap2_c,
+        nom_c: f.nom_c,
+        dni_c: f.dni_c,
+        total_mes: f.total_mes,
+      };
+      for (let i = 1; i <= days; i++) {
+        row[`d${i}`] = f.dias_arr[i - 1];
+      }
+      return row;
+    });
+  }
+
+  const xml = generarMensualExcel(m, rows, days);
+  const nombre = `mensual_${m.mes}_${norm(m.nom_o)}_${norm(m.nom_e)}.xls`;
+  res.set('Content-Type', 'application/vnd.ms-excel; charset=utf-8');
+  res.set('Content-Disposition', `attachment; filename="${nombre}"`);
+  res.send(xml);
+});
+
+// VISTA IMPRIMIBLE / PDF DE LIQUIDACIÓN MENSUAL CON FIRMAS
+router.get('/:id_m/imprimir', (req, res) => {
+  const conn = db.getDb();
+  const idM = parseInt(req.params.id_m, 10);
+  const m = conn
+    .prepare(
+      `SELECT m.*, o.nombre nom_o, o.codigo cod_o, e.nombre nom_e
+       FROM mensual m JOIN obra o ON m.id_obra=o.id_obra JOIN empresa e ON m.id_empresa=e.id_empresa
+       WHERE m.id_mensual=?`
+    )
+    .get(idM);
+  if (!m) {
+    req.flash('No encontrado.', 'error');
+    return res.redirect('/mensual/');
+  }
+
+  const year = parseInt(m.mes.slice(0, 4), 10);
+  const month = parseInt(m.mes.slice(5, 7), 10);
+  const days = new Date(year, month, 0).getDate();
+
+  let rows;
+  if (m.estado === 'cerrado') {
+    rows = conn
+      .prepare(
+        `SELECT mp.* FROM mensual_persona mp WHERE mp.id_mensual=?
+         ORDER BY mp.es_subcontrata,mp.empresa_cache,mp.ap1_c,mp.nom_c`
+      )
+      .all(idM);
+  } else {
+    const filasCalc = calcularFilasMensual(conn, m.id_obra, m.id_empresa, m.mes, days);
+    rows = filasCalc.map((f) => {
+      const row = {
+        empresa_cache: f.empresa_cache,
+        es_subcontrata: f.es_subcontrata,
+        rango_cache: f.rango_cache,
+        ap1_c: f.ap1_c,
+        ap2_c: f.ap2_c,
+        nom_c: f.nom_c,
+        dni_c: f.dni_c,
+        total_mes: f.total_mes,
+      };
+      for (let i = 1; i <= days; i++) {
+        row[`d${i}`] = f.dias_arr[i - 1];
+      }
+      return row;
+    });
+  }
+
+  res.render('mensual/imprimir', {
+    m,
+    rows,
+    days,
+    hhmm,
+  });
 });
 
 module.exports = router;

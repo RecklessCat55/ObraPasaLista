@@ -1,0 +1,151 @@
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div>
+    <h2 class="h4 mb-0"><i class="bi bi-bell-fill text-warning"></i> Panel Central de Alertas CAE / PRL</h2>
+    <small class="text-muted">Supervisión de vencimientos de reconocimientos médicos, cursos y documentación de subcontratas a fecha <strong><%= hoy %></strong></small>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="/personas/" class="btn btn-sm btn-outline-secondary"><i class="bi bi-people"></i> Personal</a>
+    <a href="/empresas/" class="btn btn-sm btn-outline-secondary"><i class="bi bi-buildings"></i> Empresas</a>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- ALERTAS TRABAJADORES -->
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-person-exclamation"></i> Vencimientos de Trabajadores (30 días)</span>
+        <span class="badge bg-danger"><%= docs_personas.length %></span>
+      </div>
+      <div class="card-body p-0">
+        <% if (docs_personas.length) { %>
+          <div class="table-responsive">
+            <table class="table table-hover table-sm align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Trabajador</th>
+                  <th>Documento</th>
+                  <th>Caducidad</th>
+                  <th>Estado</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <% docs_personas.forEach(function(dp) { %>
+                  <% 
+                    const caducado = dp.fecha_caducidad < hoy;
+                  %>
+                  <tr class="<%= caducado ? 'table-danger' : '' %>">
+                    <td>
+                      <a href="/cae/persona/<%= dp.id_persona %>" class="fw-bold text-decoration-none">
+                        <%= dp.ap1 %> <%= dp.ap2 %>, <%= dp.nom_p %>
+                      </a>
+                      <br>
+                      <small class="text-muted font-monospace"><%= dp.dni %></small>
+                      <% if (dp.nom_e) { %>
+                        <span class="badge bg-secondary ms-1" style="font-size:0.65rem"><%= dp.nom_e %></span>
+                      <% } %>
+                    </td>
+                    <td>
+                      <span class="small"><%= tipos_p[dp.tipo_doc] || dp.tipo_doc %></span>
+                      <% if (dp.descripcion) { %>
+                        <br><small class="text-muted"><%= dp.descripcion %></small>
+                      <% } %>
+                    </td>
+                    <td class="small font-monospace">
+                      <%= dp.fecha_caducidad %>
+                    </td>
+                    <td>
+                      <% if (caducado) { %>
+                        <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Caducado</span>
+                      <% } else { %>
+                        <span class="badge bg-warning text-dark"><i class="bi bi-clock"></i> Próximo</span>
+                      <% } %>
+                    </td>
+                    <td>
+                      <a href="/cae/persona/<%= dp.id_persona %>" class="btn btn-sm btn-outline-primary py-0 px-1" title="Ver ficha CAE">
+                        <i class="bi bi-eye"></i>
+                      </a>
+                    </td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        <% } else { %>
+          <div class="p-4 text-center text-muted">
+            <i class="bi bi-check-circle-fill text-success fs-1"></i>
+            <p class="mt-2 mb-0">No hay documentos de operarios caducados ni próximos a caducar en los siguientes 30 días.</p>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <!-- ALERTAS SUBCONTRATAS -->
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-building-exclamation"></i> Vencimientos de Subcontratas (30 días)</span>
+        <span class="badge bg-danger"><%= docs_empresas.length %></span>
+      </div>
+      <div class="card-body p-0">
+        <% if (docs_empresas.length) { %>
+          <div class="table-responsive">
+            <table class="table table-hover table-sm align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Empresa</th>
+                  <th>Documento</th>
+                  <th>Caducidad</th>
+                  <th>Estado</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <% docs_empresas.forEach(function(de) { %>
+                  <% 
+                    const caducado = de.fecha_caducidad < hoy;
+                  %>
+                  <tr class="<%= caducado ? 'table-danger' : '' %>">
+                    <td>
+                      <a href="/cae/empresa/<%= de.id_empresa %>" class="fw-bold text-decoration-none">
+                        <%= de.nom_e %>
+                      </a>
+                    </td>
+                    <td>
+                      <span class="small"><%= tipos_e[de.tipo_doc] || de.tipo_doc %></span>
+                      <% if (de.descripcion) { %>
+                        <br><small class="text-muted"><%= de.descripcion %></small>
+                      <% } %>
+                    </td>
+                    <td class="small font-monospace">
+                      <%= de.fecha_caducidad %>
+                    </td>
+                    <td>
+                      <% if (caducado) { %>
+                        <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Caducado</span>
+                      <% } else { %>
+                        <span class="badge bg-warning text-dark"><i class="bi bi-clock"></i> Próximo</span>
+                      <% } %>
+                    </td>
+                    <td>
+                      <a href="/cae/empresa/<%= de.id_empresa %>" class="btn btn-sm btn-outline-primary py-0 px-1" title="Ver ficha CAE">
+                        <i class="bi bi-eye"></i>
+                      </a>
+                    </td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        <% } else { %>
+          <div class="p-4 text-center text-muted">
+            <i class="bi bi-check-circle-fill text-success fs-1"></i>
+            <p class="mt-2 mb-0">No hay documentación de subcontratas caducada ni próxima a caducar en los siguientes 30 días.</p>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>

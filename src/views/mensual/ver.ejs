@@ -12,8 +12,14 @@
       <button class="btn btn-warning btn-sm"><i class="bi bi-lock"></i> Cerrar mes</button>
     </form>
     <% } else { %>
-    <a href="/mensual/<%= m.id_mensual %>/csv" class="btn btn-success btn-sm">
-      <i class="bi bi-download"></i> Exportar CSV</a>
+    <a href="/mensual/<%= m.id_mensual %>/excel" class="btn btn-outline-success btn-sm" title="Descargar en formato Excel con fórmulas y estilos">
+      <i class="bi bi-file-earmark-spreadsheet"></i> Excel
+    </a>
+    <a href="/mensual/<%= m.id_mensual %>/imprimir" target="_blank" class="btn btn-outline-primary btn-sm" title="Hoja de liquidación oficial para firmas">
+      <i class="bi bi-printer"></i> Liquidación / Firmas
+    </a>
+    <a href="/mensual/<%= m.id_mensual %>/csv" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-download"></i> CSV</a>
     <% if (m.estado_obra === 'finalizada') { %>
     <span class="btn btn-outline-secondary btn-sm disabled"><i class="bi bi-unlock"></i> Reabrir (obra finalizada)</span>
     <% } else { %>

@@ -5,7 +5,10 @@
     </h2>
     <small class="text-muted"><%= fecha %></small>
   </div>
-  <div class="d-flex gap-2">
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="/diario/<%= d.id_diario %>/movil" class="btn btn-sm btn-primary">
+      <i class="bi bi-phone"></i> Modo táctil / móvil
+    </a>
     <a href="/diario/" class="btn btn-sm btn-outline-secondary"><i class="bi bi-calendar3"></i></a>
     <% if (obra.estado !== 'finalizada') { %>
     <a href="/diario/<%= d.id_diario %>/asignacion-masiva" class="btn btn-sm btn-outline-success">
@@ -75,9 +78,26 @@
   <tbody>
   <% lineas.forEach(function(l) { %>
   <tr>
-    <td><%= l.ap1 %> <%= l.ap2 %>, <%= l.nom_p %><br>
-      <small class="text-muted font-monospace"><%= l.dni %></small></td>
-    <td class="small"><%= l.nom_e %></td>
+    <td>
+      <%= l.ap1 %> <%= l.ap2 %>, <%= l.nom_p %>
+      <% const docP = semaforo_cae && semaforo_cae.personas ? semaforo_cae.personas[l.id_persona] : null; %>
+      <% if (docP) { %>
+        <a href="/cae/persona/<%= l.id_persona %>" class="badge <%= docP.badgeClass %> text-decoration-none ms-1" title="PRL: <%= docP.titulo %>" style="font-size:0.6rem">
+          <i class="bi <%= docP.icono %>"></i> <%= docP.estado.toUpperCase() %>
+        </a>
+      <% } %>
+      <br>
+      <small class="text-muted font-monospace"><%= l.dni %></small>
+    </td>
+    <td class="small">
+      <%= l.nom_e %>
+      <% const docE = semaforo_cae && semaforo_cae.empresas ? semaforo_cae.empresas[l.id_empresa] : null; %>
+      <% if (docE && docE.estado !== 'ok') { %>
+        <a href="/cae/empresa/<%= l.id_empresa %>" class="badge <%= docE.badgeClass %> text-decoration-none ms-1" title="CAE Empresa: <%= docE.titulo %>" style="font-size:0.6rem">
+          <i class="bi <%= docE.icono %>"></i>
+        </a>
+      <% } %>
+    </td>
     <td><span class="badge bg-secondary" style="font-size:.65rem"><%= l.cod_r || '—' %></span></td>
     <td class="font-monospace small">
       <%= l.cod_pa || '—' %>

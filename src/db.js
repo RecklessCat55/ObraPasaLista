@@ -153,6 +153,31 @@ CREATE TABLE IF NOT EXISTS mensual_persona(
     d22 REAL, d23 REAL, d24 REAL, d25 REAL, d26 REAL, d27 REAL, d28 REAL,
     d29 REAL, d30 REAL, d31 REAL,
     total_mes REAL NOT NULL DEFAULT 0);
+
+-- v1.3: CAE / PRL documentacion trabajadores y empresas
+CREATE TABLE IF NOT EXISTS documentacion_persona(
+    id_doc_persona INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_persona INTEGER NOT NULL REFERENCES persona(id_persona) ON DELETE CASCADE,
+    tipo_doc TEXT NOT NULL,
+    descripcion TEXT NOT NULL DEFAULT '',
+    fecha_emision DATE,
+    fecha_caducidad DATE,
+    archivo_nombre TEXT,
+    archivo_ruta TEXT,
+    estado TEXT NOT NULL DEFAULT 'valido',
+    observaciones TEXT NOT NULL DEFAULT '');
+
+CREATE TABLE IF NOT EXISTS documentacion_empresa(
+    id_doc_empresa INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_empresa INTEGER NOT NULL REFERENCES empresa(id_empresa) ON DELETE CASCADE,
+    tipo_doc TEXT NOT NULL,
+    descripcion TEXT NOT NULL DEFAULT '',
+    fecha_emision DATE,
+    fecha_caducidad DATE,
+    archivo_nombre TEXT,
+    archivo_ruta TEXT,
+    estado TEXT NOT NULL DEFAULT 'valido',
+    observaciones TEXT NOT NULL DEFAULT '');
 `;
 
 const RANGOS_DEFAULT = [
@@ -198,6 +223,30 @@ const MIGRATION_V12 = [
   // 2.3 auditoría
   'CREATE TABLE IF NOT EXISTS log_auditoria(id_log INTEGER PRIMARY KEY AUTOINCREMENT, fecha TEXT NOT NULL, tipo_evento TEXT NOT NULL, entidad TEXT NOT NULL, entidad_id INTEGER NOT NULL, obra_id INTEGER NOT NULL, detalle TEXT NOT NULL)',
   'ALTER TABLE log_auditoria ADD COLUMN obra_id INTEGER', // por si la tabla ya existía sin esta columna
+// -- MIGRACIÓN v1.2 -> v1.3 (CAE/PRL documentación trabajadores y empresas) --
+const MIGRATION_V13 = [
+  `CREATE TABLE IF NOT EXISTS documentacion_persona(
+    id_doc_persona INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_persona INTEGER NOT NULL REFERENCES persona(id_persona) ON DELETE CASCADE,
+    tipo_doc TEXT NOT NULL,
+    descripcion TEXT NOT NULL DEFAULT '',
+    fecha_emision DATE,
+    fecha_caducidad DATE,
+    archivo_nombre TEXT,
+    archivo_ruta TEXT,
+    estado TEXT NOT NULL DEFAULT 'valido',
+    observaciones TEXT NOT NULL DEFAULT '')`,
+  `CREATE TABLE IF NOT EXISTS documentacion_empresa(
+    id_doc_empresa INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_empresa INTEGER NOT NULL REFERENCES empresa(id_empresa) ON DELETE CASCADE,
+    tipo_doc TEXT NOT NULL,
+    descripcion TEXT NOT NULL DEFAULT '',
+    fecha_emision DATE,
+    fecha_caducidad DATE,
+    archivo_nombre TEXT,
+    archivo_ruta TEXT,
+    estado TEXT NOT NULL DEFAULT 'valido',
+    observaciones TEXT NOT NULL DEFAULT '')`,
 ];
 
 let _db = null;
@@ -246,9 +295,9 @@ function aplicarMigracion(db, statements, etiqueta) {
 /** Crea las tablas si no existen y siembra datos base (primer arranque sin CLI). */
 function initIfNeeded(db) {
   db.exec(SCHEMA);
-  // Si la BD viene de una v1.1 sin pasar por `upgrade-db`, aplicamos también
-  // la migración v1.2 aquí (todos los statements son idempotentes).
+  // Si la BD viene de una versión anterior, aplicamos migraciones de forma idempotente.
   aplicarMigracion(db, MIGRATION_V12, 'v1.2 (auto)');
+  aplicarMigracion(db, MIGRATION_V13, 'v1.3 (auto)');
   const cfg = db.prepare('SELECT 1 FROM config WHERE id_config=1').get();
   if (!cfg) {
     db.prepare(
@@ -258,20 +307,21 @@ function initIfNeeded(db) {
   seedRangos(db);
 }
 
-/** flask --app app init-db : instalación limpia, ya en v1.2. */
+/** flask --app app init-db : instalación limpia, ya en v1.3. */
 function cliInitDb(db) {
   db.exec(SCHEMA);
   db.prepare(
     'INSERT OR IGNORE INTO config(id_config,limite_horas_dia,umbral_desajuste_meta) VALUES(1,24.0,2.0)'
   ).run();
   seedRangos(db);
-  console.log('OK BD inicializada (v1.2).');
+  console.log('OK BD inicializada (v1.3).');
 }
 
-/** flask --app app upgrade-db : migra una BD v1.0/v1.1 existente hasta v1.2 (idempotente). */
+/** flask --app app upgrade-db : migra una BD v1.0/v1.1/v1.2 existente hasta v1.3 (idempotente). */
 function cliUpgradeDb(db) {
   aplicarMigracion(db, MIGRATION_V11, 'v1.1');
   aplicarMigracion(db, MIGRATION_V12, 'v1.2');
+  aplicarMigracion(db, MIGRATION_V13, 'v1.3');
   db.prepare(
     'INSERT OR IGNORE INTO config(id_config,limite_horas_dia,umbral_desajuste_meta) VALUES(1,24.0,2.0)'
   ).run();
@@ -291,7 +341,7 @@ function cliUpgradeDb(db) {
     });
     tx();
   }
-  console.log('OK Migración v1.2 completada.');
+  console.log('OK Migración v1.3 completada.');
 }
 
 module.exports = {
@@ -299,6 +349,7 @@ module.exports = {
   RANGOS_DEFAULT,
   MIGRATION_V11,
   MIGRATION_V12,
+  MIGRATION_V13,
   getDb,
   closeDb,
   seedRangos,

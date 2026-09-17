@@ -14,6 +14,7 @@
     <td><span class="badge badge-<%= e.estado %>"><%= e.estado %></span></td>
     <td><%= e.n_p %></td><td><%= e.n_o %></td>
     <td class="text-end">
+      <a href="/cae/empresa/<%= e.id_empresa %>" class="btn btn-sm btn-outline-info py-0" title="Documentación CAE (TC2/Seguros)"><i class="bi bi-shield-check"></i></a>
       <a href="/empresas/<%= e.id_empresa %>/editar" class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-pencil"></i></a>
       <form method="post" action="/empresas/<%= e.id_empresa %>/eliminar" class="d-inline"
             onsubmit="return confirm('¿Eliminar empresa <%= e.nombre %>?')">

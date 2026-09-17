@@ -35,6 +35,10 @@
     <td><span class="badge badge-<%= p.estado %>"><%= p.estado %></span></td>
     <td class="text-end">
       <div class="btn-group">
+        <a href="/cae/persona/<%= p.id_persona %>"
+           class="btn btn-sm btn-outline-info py-0" title="Documentación PRL / CAE">
+          <i class="bi bi-shield-check"></i>
+        </a>
         <a href="/personas/<%= p.id_persona %>/editar"
            class="btn btn-sm btn-outline-secondary py-0">
           <i class="bi bi-pencil"></i>

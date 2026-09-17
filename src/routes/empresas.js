@@ -94,12 +94,33 @@ router.post('/:id/editar', (req, res) => {
 router.post('/:id/eliminar', (req, res) => {
   const conn = db.getDb();
   const id = parseInt(req.params.id, 10);
-  try {
-    const e = conn.prepare('SELECT nombre FROM empresa WHERE id_empresa=?').get(id);
-    conn.prepare('DELETE FROM empresa WHERE id_empresa=?').run(id);
-    req.flash(`Empresa "${e ? e.nombre : ''}" eliminada.`, 'success');
-  } catch (e) {
-    req.flash('No se puede eliminar: hay registros vinculados.', 'error');
+  const e = conn.prepare('SELECT nombre FROM empresa WHERE id_empresa=?').get(id);
+  if (!e) {
+    req.flash('Empresa no encontrada.', 'error');
+    return res.redirect('/empresas/');
+  }
+  // Comprobar si hay registros vinculados que impidan el borrado duro
+  const nPersonas = conn.prepare('SELECT count(*) c FROM persona WHERE id_empresa=?').get(id).c;
+  const nObras = conn.prepare('SELECT count(*) c FROM obra_empresa WHERE id_empresa=?').get(id).c;
+  const nDiario = conn.prepare('SELECT count(*) c FROM diario_linea WHERE id_empresa=?').get(id).c;
+  const nMensual = conn.prepare('SELECT count(*) c FROM mensual WHERE id_empresa=?').get(id).c;
+
+  if (nPersonas || nObras || nDiario || nMensual) {
+    // Borrado suave: marcar como 'baja' en lugar de destruir datos históricos
+    conn.prepare("UPDATE empresa SET estado='baja' WHERE id_empresa=?").run(id);
+    req.flash(
+      `Empresa "${e.nombre}" marcada como BAJA (tiene ${nPersonas} persona(s), ` +
+        `${nObras} obra(s), ${nDiario} línea(s) de diario y ${nMensual} mensual(es) vinculados). ` +
+        'No se puede eliminar definitivamente mientras existan registros asociados.',
+      'warning'
+    );
+  } else {
+    try {
+      conn.prepare('DELETE FROM empresa WHERE id_empresa=?').run(id);
+      req.flash(`Empresa "${e.nombre}" eliminada definitivamente.`, 'success');
+    } catch (err) {
+      req.flash(`Error: ${err.message}`, 'error');
+    }
   }
   res.redirect('/empresas/');
 });

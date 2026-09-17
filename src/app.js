@@ -56,6 +56,7 @@ app.use('/diario', require('./routes/diario'));
 app.use('/mensual', require('./routes/mensual'));
 app.use('/backup', require('./routes/backup'));
 app.use('/config', require('./routes/config'));
+app.use('/cae', require('./routes/cae'));
 app.use('/informes', require('./routes/informes'));
 app.use('/faq', require('./routes/faq'));
 

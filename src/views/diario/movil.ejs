@@ -1,0 +1,237 @@
+<div class="container-fluid px-2 py-1" style="max-width: 720px;">
+  <!-- CABECERA MÓVIL STICKY -->
+  <div class="card mb-3 sticky-top border-primary shadow-sm" style="top: 0; z-index: 1020; background: #161b22;">
+    <div class="card-body p-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <div class="d-flex align-items-center gap-2">
+          <a href="/diario/<%= d.id_diario %>" class="btn btn-sm btn-outline-secondary py-1 px-2" title="Volver a vista de escritorio">
+            <i class="bi bi-arrow-left"></i>
+          </a>
+          <h1 class="h6 mb-0 text-truncate" style="max-width: 220px;"><%= obra.nombre %></h1>
+        </div>
+        <div class="text-muted small ps-4">
+          <i class="bi bi-calendar3"></i> <%= fecha %>
+          <span class="badge bg-secondary ms-1"><%= obra.codigo %></span>
+        </div>
+      </div>
+      <div class="text-end">
+        <span class="small text-muted">Total parte</span>
+        <div class="fs-5 fw-bold text-warning font-monospace" id="contador-total-horas"><%= hhmm(total) %></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BARRA DE BÚSQUEDA Y PARTIDA POR DEFECTO -->
+  <div class="card mb-3">
+    <div class="card-body p-2">
+      <div class="row g-2">
+        <div class="col-7">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text bg-dark text-muted"><i class="bi bi-search"></i></span>
+            <input type="text" id="filtro-trabajador" class="form-control" placeholder="Buscar operario o DNI...">
+          </div>
+        </div>
+        <div class="col-5">
+          <select id="selector-partida-rapida" class="form-select form-select-sm">
+            <option value="">Partida: General</option>
+            <% partidas.forEach(function(pa) { %>
+              <option value="<%= pa.id_partida %>"><%= pa.codigo %> - <%= pa.descripcion || '' %></option>
+            <% }); %>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 1: TRABAJADORES EN ESTE PARTE -->
+  <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+    <span class="fw-bold text-white small text-uppercase">
+      <i class="bi bi-people-fill text-primary"></i> Personal en el parte (<span id="cont-personal-diario"><%= lineas.length %></span>)
+    </span>
+    <span class="small text-muted">Toca para asignar horas</span>
+  </div>
+
+  <div id="lista-en-diario" class="d-flex flex-column gap-2 mb-4">
+    <% if (lineas.length === 0) { %>
+      <div class="card p-3 text-center text-muted" id="aviso-sin-lineas">
+        <p class="mb-0 small">Aún no hay personal fichado hoy. Selecciona trabajadores de la lista inferior para añadir horas con un solo toque.</p>
+      </div>
+    <% } %>
+
+    <% lineas.forEach(function(l) { %>
+      <% 
+        const docInfo = semaforo.personas[l.id_persona] || { estado: 'ok', badgeClass: 'bg-success', icono: 'bi-shield-check', titulo: 'Al día', alertas: [] };
+      %>
+      <div class="card tarjeta-operario" 
+           data-id-dl="<%= l.id_dl %>" 
+           data-id-persona="<%= l.id_persona %>" 
+           data-id-empresa="<%= l.id_empresa %>"
+           data-nombre="<%= (l.ap1 + ' ' + l.ap2 + ' ' + l.nom_p + ' ' + l.dni).toLowerCase() %>">
+        <div class="card-body p-2">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+              <div class="fw-bold text-white fs-6">
+                <%= l.ap1 %> <%= l.ap2 %>, <%= l.nom_p %>
+                <span class="badge <%= docInfo.badgeClass %> p-1 ms-1" title="<%= docInfo.titulo %>" style="font-size:0.65rem">
+                  <i class="bi <%= docInfo.icono %>"></i> <%= docInfo.estado.toUpperCase() %>
+                </span>
+              </div>
+              <div class="small text-muted">
+                <%= l.nom_e %> &bull; <span class="font-monospace"><%= l.dni %></span>
+                <% if (l.cod_pa) { %> &bull; <span class="badge bg-secondary" style="font-size:0.6rem"><%= l.cod_pa %></span><% } %>
+              </div>
+            </div>
+            <div class="text-end">
+              <span class="badge bg-dark border border-secondary fs-6 font-monospace badge-horas-linea" id="horas-dl-<%= l.id_dl %>">
+                <%= hhmm(l.horas) %>
+              </span>
+              <div class="feedback-guardado text-success small" style="display:none;"><i class="bi bi-check2"></i> Guardado</div>
+            </div>
+          </div>
+
+          <!-- BOTONES TÁCTILES RÁPIDOS -->
+          <div class="btn-group w-100" role="group">
+            <button type="button" class="btn btn-outline-danger btn-sm py-2 btn-accion-horas" data-horas="0">0h</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm py-2 btn-accion-horas" data-horas="<%= Math.max(0, l.horas - 1) %>">-1h</button>
+            <button type="button" class="btn btn-outline-info btn-sm py-2 btn-accion-horas" data-horas="4">4h</button>
+            <button type="button" class="btn btn-primary btn-sm py-2 fw-bold btn-accion-horas" data-horas="8">8h</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm py-2 btn-accion-horas" data-horas="<%= Math.min(24, l.horas + 1) %>">+1h</button>
+          </div>
+        </div>
+      </div>
+    <% }); %>
+  </div>
+
+  <!-- SECCIÓN 2: OTROS TRABAJADORES ACTIVOS DE LA OBRA -->
+  <% if (otras_personas.length) { %>
+    <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+      <span class="fw-bold text-white small text-uppercase">
+        <i class="bi bi-person-plus-fill text-info"></i> Personal disponible sin fichar (<span id="cont-personal-disponible"><%= otras_personas.length %></span>)
+      </span>
+    </div>
+
+    <div id="lista-disponibles" class="d-flex flex-column gap-2 mb-4">
+      <% otras_personas.forEach(function(p) { %>
+        <% 
+          const docInfo = semaforo.personas[p.id_persona] || { estado: 'ok', badgeClass: 'bg-success', icono: 'bi-shield-check', titulo: 'Al día', alertas: [] };
+        %>
+        <div class="card tarjeta-operario border-secondary-subtle" 
+             data-id-dl="" 
+             data-id-persona="<%= p.id_persona %>" 
+             data-id-empresa="<%= p.id_empresa %>"
+             data-nombre="<%= (p.ap1 + ' ' + p.ap2 + ' ' + p.nom_p + ' ' + p.dni).toLowerCase() %>">
+          <div class="card-body p-2">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <div>
+                <div class="fw-semibold text-white">
+                  <%= p.ap1 %> <%= p.ap2 %>, <%= p.nom_p %>
+                  <span class="badge <%= docInfo.badgeClass %> p-1 ms-1" title="<%= docInfo.titulo %>" style="font-size:0.65rem">
+                    <i class="bi <%= docInfo.icono %>"></i> <%= docInfo.estado.toUpperCase() %>
+                  </span>
+                </div>
+                <div class="small text-muted">
+                  <%= p.nom_e %> &bull; <span class="font-monospace"><%= p.dni %></span>
+                </div>
+              </div>
+              <div class="text-end">
+                <span class="badge bg-secondary fs-6 font-monospace badge-horas-linea">0h</span>
+                <div class="feedback-guardado text-success small" style="display:none;"><i class="bi bi-check2"></i> Guardado</div>
+              </div>
+            </div>
+
+            <!-- BOTONES RÁPIDOS PARA INCLUIR CON 1 TAP -->
+            <div class="btn-group w-100" role="group">
+              <button type="button" class="btn btn-outline-info btn-sm py-2 btn-accion-horas" data-horas="4">Fichar 4h</button>
+              <button type="button" class="btn btn-success btn-sm py-2 fw-bold btn-accion-horas" data-horas="8">Fichar 8h (Jornada)</button>
+            </div>
+          </div>
+        </div>
+      <% }); %>
+    </div>
+  <% } %>
+</div>
+
+<script>
+(function() {
+  const idDiario = <%= d.id_diario %>;
+
+  // Filtro en tiempo real
+  const inputFiltro = document.getElementById('filtro-trabajador');
+  inputFiltro.addEventListener('input', function() {
+    const q = this.value.toLowerCase().trim();
+    document.querySelectorAll('.tarjeta-operario').forEach(card => {
+      const nom = card.getAttribute('data-nombre') || '';
+      card.style.display = nom.includes(q) ? '' : 'none';
+    });
+  });
+
+  // Delegación de clics en botones de acción rápida
+  document.addEventListener('click', async function(e) {
+    const btn = e.target.closest('.btn-accion-horas');
+    if (!btn) return;
+
+    const card = btn.closest('.tarjeta-operario');
+    if (!card) return;
+
+    const horas = parseFloat(btn.getAttribute('data-horas'));
+    const idDl = card.getAttribute('data-id-dl') || null;
+    const idPersona = card.getAttribute('data-id-persona');
+    const idEmpresa = card.getAttribute('data-id-empresa');
+    const idPartida = document.getElementById('selector-partida-rapida').value || null;
+
+    btn.disabled = true;
+    const badgeHoras = card.querySelector('.badge-horas-linea');
+    const feedback = card.querySelector('.feedback-guardado');
+
+    try {
+      const resp = await fetch('/diario/linea/api/guardar-horas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id_dl: idDl,
+          id_diario: idDiario,
+          id_persona: idPersona,
+          id_empresa: idEmpresa,
+          id_partida: idPartida,
+          horas: horas
+        })
+      });
+
+      const data = await resp.json();
+      if (!resp.ok) {
+        alert(data.error || 'Error al guardar horas');
+        return;
+      }
+
+      // Actualizar tarjeta con el nuevo id_dl si era nueva
+      if (data.id_dl) {
+        card.setAttribute('data-id-dl', data.id_dl);
+      }
+
+      // Actualizar badge visual de horas
+      if (badgeHoras) {
+        badgeHoras.textContent = String(horas) + 'h';
+        badgeHoras.classList.remove('bg-secondary');
+        badgeHoras.classList.add('bg-dark');
+      }
+
+      // Actualizar total general
+      const totalCont = document.getElementById('contador-total-horas');
+      if (totalCont && data.total) {
+        totalCont.textContent = data.total;
+      }
+
+      // Mostrar feedback instantáneo
+      if (feedback) {
+        feedback.style.display = 'block';
+        setTimeout(() => { feedback.style.display = 'none'; }, 2000);
+      }
+
+    } catch (err) {
+      alert('Error de conexión con el servidor: ' + err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+})();
+</script>

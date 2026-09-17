@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Liquidación Mensual — <%= m.nom_o %> (<%= m.mes %>) — <%= m.nom_e %></title>
+  <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/vendor/bootstrap-icons/font/bootstrap-icons.min.css">
+  <style>
+    body {
+      background: #fff;
+      color: #000;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11px;
+      padding: 15px;
+    }
+    .header-box {
+      border-bottom: 2px solid #000;
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+    }
+    .tabla-liquidacion {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 15px;
+    }
+    .tabla-liquidacion th, .tabla-liquidacion td {
+      border: 1px solid #444;
+      padding: 4px 2px;
+      text-align: center;
+      font-size: 9.5px;
+    }
+    .tabla-liquidacion th {
+      background-color: #e9ecef !important;
+      color: #000;
+      font-weight: bold;
+    }
+    .text-left { text-align: left !important; padding-left: 5px !important; }
+    .box-firma {
+      border: 1px solid #666;
+      height: 105px;
+      padding: 8px;
+      background: #fafafa;
+    }
+    @media print {
+      body { padding: 0; }
+      .no-print { display: none !important; }
+      @page {
+        size: landscape;
+        margin: 8mm;
+      }
+      .tabla-liquidacion th {
+        background-color: #ddd !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="d-flex justify-content-between align-items-center mb-3 no-print p-2 bg-light border rounded">
+  <div>
+    <strong>Vista de Impresión / Liquidación Oficial</strong> &bull; Usa orientación <strong>Horizontal</strong> al guardar en PDF.
+  </div>
+  <div class="d-flex gap-2">
+    <button onclick="window.print()" class="btn btn-primary btn-sm fw-bold">
+      <i class="bi bi-printer"></i> Imprimir / Guardar en PDF
+    </button>
+    <button onclick="window.close()" class="btn btn-outline-secondary btn-sm">
+      Cerrar
+    </button>
+  </div>
+</div>
+
+<div class="header-box d-flex justify-content-between align-items-end">
+  <div>
+    <h3 class="h5 mb-1 text-uppercase fw-bold text-dark">Hoja de Liquidación y Control Mensual de Jornadas</h3>
+    <div class="small">
+      <strong>Obra:</strong> <%= m.nom_o %> (<%= m.cod_o %>) &bull;
+      <strong>Empresa:</strong> <%= m.nom_e %> &bull;
+      <strong>Periodo:</strong> <%= m.mes %>
+    </div>
+  </div>
+  <div class="text-end small text-muted">
+    Estado: <strong><%= m.estado.toUpperCase() %></strong><br>
+    Fecha emisión: <%= new Date().toLocaleDateString('es-ES') %>
+  </div>
+</div>
+
+<table class="tabla-liquidacion">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 140px;">Empresa</th>
+      <th class="text-left" style="width: 170px;">Apellidos y Nombre</th>
+      <th style="width: 75px;">DNI</th>
+      <th style="width: 80px;">Categoría</th>
+      <% for (let i = 1; i <= days; i++) { %>
+        <th style="width: 22px;"><%= i %></th>
+      <% } %>
+      <th style="width: 45px; background-color: #d1e7dd !important;">Total</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% let granTotal = 0; %>
+    <% rows.forEach(function(f) { %>
+      <% granTotal += (f.total_mes || 0); %>
+      <tr>
+        <td class="text-left"><%= f.empresa_cache %></td>
+        <td class="text-left fw-semibold"><%= f.ap1_c %> <%= f.ap2_c %>, <%= f.nom_c %></td>
+        <td class="font-monospace"><%= f.dni_c %></td>
+        <td><%= f.rango_cache || '—' %></td>
+        <% for (let i = 1; i <= days; i++) { %>
+          <% const v = f['d' + i]; %>
+          <td><%= (v && v > 0) ? (Math.round(v * 10) / 10) : '' %></td>
+        <% } %>
+        <td class="fw-bold" style="background-color: #f8f9fa;"><%= hhmm(f.total_mes) %></td>
+      </tr>
+    <% }); %>
+  </tbody>
+  <tfoot>
+    <tr style="font-weight: bold; background-color: #e9ecef;">
+      <td colspan="4" class="text-end pe-2">TOTAL HORAS COMPUTADAS:</td>
+      <td colspan="<%= days %>"></td>
+      <td class="fw-bold fs-6"><%= hhmm(granTotal) %></td>
+    </tr>
+  </tfoot>
+</table>
+
+<div class="small text-muted mb-3" style="font-size: 8.5px; line-height: 1.2;">
+  Las partes firmantes prestan su plena conformidad al desglose de horas y jornadas de trabajo registrado en el presente documento, acreditando la efectiva realización de los trabajos contratados en la obra de referencia y el cumplimiento de las disposiciones vigentes en materia de legislación laboral, seguridad social y prevención de riesgos laborales.
+</div>
+
+<div class="row g-3">
+  <div class="col-6">
+    <div class="box-firma d-flex flex-column justify-content-between">
+      <div class="fw-bold small">Por la Empresa Principal / Dirección de Obra:</div>
+      <div class="text-muted" style="font-size: 8.5px;">Firma y fecha:</div>
+    </div>
+  </div>
+  <div class="col-6">
+    <div class="box-firma d-flex flex-column justify-content-between">
+      <div class="fw-bold small">Por la Empresa Subcontratista (<%= m.nom_e %>):</div>
+      <div class="text-muted" style="font-size: 8.5px;">Sello, firma del representante y fecha:</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
