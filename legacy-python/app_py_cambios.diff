@@ -1,0 +1,71 @@
+diff --git a/src/app.py b/src/app.py
+index 25c23c1..3e50311 100644
+--- a/src/app.py
++++ b/src/app.py
+@@ -614,8 +614,8 @@ _BASE_HTML = r"""<!DOCTYPE html>
+ <html lang="es" data-bs-theme="dark">
+ <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+ <title>{% block title %}OPL{% endblock %} — ObraPasaLista</title>
+-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css">
+-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css">
++<link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap/css/bootstrap.min.css') }}">
++<link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap-icons/font/bootstrap-icons.min.css') }}">
+ <style>
+ body{background:#0d1117}
+ .navbar-brand{color:#f97316!important;font-weight:800}
+@@ -624,11 +624,16 @@ body{background:#0d1117}
+ .nav-link.hi{color:#f97316!important;font-weight:600}
+ .card{border-color:#30363d}.card-header{background:#161b22;border-color:#30363d}
+ .sec{color:#f97316;font-weight:700;border-bottom:2px solid #30363d;padding-bottom:.3rem;margin-bottom:.9rem;font-size:.95rem}
+-.htd{text-align:center;font-family:monospace;font-size:.75rem;padding:2px 3px!important;min-width:38px}
+-.hth{text-align:center;font-size:.7rem;padding:3px 2px!important;min-width:38px}
++/* Tamaños de fuente y zonas de toque ampliados: dedos sucios/guantes, presbicia, uso en exterior */
++.htd{text-align:center;font-family:monospace;font-size:1rem;padding:10px 8px!important;min-width:48px;min-height:44px}
++.hth{text-align:center;font-size:.95rem;padding:8px 6px!important;min-width:48px}
+ .badge-activa,.badge-abierto{background:#22c55e!important}
+ .badge-inactiva,.badge-finalizada,.badge-baja,.badge-cerrado{background:#6b7280!important}
+-.table-sm td,.table-sm th{font-size:.83rem}
++.table-sm td,.table-sm th{font-size:.95rem;padding:.55rem .5rem!important}
++.badge{font-size:.8rem!important}
++.btn{min-height:44px}
++.btn-sm{min-height:38px;padding:.4rem .7rem!important}
++.btn-link.btn-sm{min-height:44px;padding:.4rem .6rem!important}
+ </style></head>
+ <body>
+ <nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom border-secondary-subtle mb-3 py-1">
+@@ -691,7 +696,7 @@ body{background:#0d1117}
+ {% endfor %}{% endwith %}
+ {% block content %}{% endblock %}
+ </div>
+-<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
++<script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
+ {% block scripts %}{% endblock %}
+ </body></html>"""
+ 
+@@ -1741,7 +1746,7 @@ _DOC_TPL = r"""
+     <ul class="list-unstyled mb-2 small">
+       {% for a in archivos_por_carpeta.get(c.id_carpeta, []) %}
+       <li><i class="bi bi-file-earmark"></i> <a href="/documentacion/archivo/{{ a.id_archivo }}/descargar">{{ a.nombre }}</a>
+-        <span class="text-muted" style="font-size:.68rem">({{ a.fecha_subida }})</span></li>
++        <span class="text-muted" style="font-size:.8rem">({{ a.fecha_subida }})</span></li>
+       {% else %}
+       <li class="text-muted">Sin archivos.</li>
+       {% endfor %}
+@@ -2661,7 +2666,7 @@ _MENSUAL_TPL = r"""
+     <td class="text-center">{{ '✓' if f.es_subcontrata else '' }}</td>
+     <td><span class="badge bg-secondary" style="font-size:.62rem">{{ f.rango_cache or '—' }}</span></td>
+     <td>{{ f.ap1_c }} {{ f.ap2_c }}, {{ f.nom_c }}</td>
+-    <td class="font-monospace" style="font-size:.68rem">{{ f.dni_c }}</td>
++    <td class="font-monospace" style="font-size:.8rem">{{ f.dni_c }}</td>
+     {% for h in f.dias_arr %}<td class="htd">{{ hhmm(h) }}</td>{% endfor %}
+     <td class="htd fw-bold text-warning">{{ hhmm(f.total_mes) }}</td>
+   </tr>
+@@ -2895,7 +2900,7 @@ La meta de una persona siempre prevalece sobre la de su empresa y obra.</p>
+   <div class="card"><div class="card-header">Personas</div><div class="card-body p-0" style="max-height:420px;overflow:auto">
+   <table class="table table-sm mb-0">
+   {% for p in personas %}
+-  <tr><td class="small">{{ p.apellido1 }}, {{ p.nombre }}<br><span class="text-muted" style="font-size:.68rem">{{ p.nom_e or '—' }}</span></td>
++  <tr><td class="small">{{ p.apellido1 }}, {{ p.nombre }}<br><span class="text-muted" style="font-size:.8rem">{{ p.nom_e or '—' }}</span></td>
+     <td style="width:110px">
+       <form method="post" action="/config/metas/persona/{{ p.id_persona }}" class="d-flex gap-1">
+         <input type="number" name="meta_horas_dia" class="form-control form-control-sm" step="0.25" min="0.25"
