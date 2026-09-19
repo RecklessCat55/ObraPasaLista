@@ -1,12 +1,22 @@
 node_modules/
 
 # Bases de datos y backups (datos reales de obra: no van al repo)
-data/*.db
-data/*.db-wal
-data/*.db-shm
-data/backups/*.db
-!data/.gitkeep
-!data/backups/.gitkeep
+src/data/*.db
+src/data/*.db-wal
+src/data/*.db-shm
+src/data/backups/*.db
+!src/data/.gitkeep
+!src/data/backups/.gitkeep
+
+# Entorno virtual y cachés de Python (legacy)
+legacy-python/.venv/
+legacy-python/__pycache__/
+legacy-python/services/__pycache__/
+**/__pycache__/
+
+# Artefactos de build (PyInstaller)
+build/
+dist/
 
 # Documentación subida por los usuarios de la app
 docs/*
