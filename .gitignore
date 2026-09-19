@@ -8,10 +8,10 @@ src/data/backups/*.db
 !src/data/.gitkeep
 !src/data/backups/.gitkeep
 
-# Entorno virtual y cachés de Python (legacy)
-legacy-python/.venv/
-legacy-python/__pycache__/
-legacy-python/services/__pycache__/
+# Entornos virtuales y cachés de Python (legacy) — cualquier ruta, no solo legacy-python/
+.venv/
+**/.venv/
+__pycache__/
 **/__pycache__/
 
 # Artefactos de build (PyInstaller)
