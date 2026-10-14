@@ -1,0 +1,71 @@
+﻿<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="h4 mb-0"><i class="bi bi-calendar-x"></i> Festivos configurables</h2>
+  <a href="/config/" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Config general</a>
+</div>
+<p class="text-muted small">
+  Los dias marcados como festivos se saltan durante el <strong>arrastre inteligente</strong> del parte diario,
+  igual que los sabados y domingos. Anade aqui puentes, festivos autonomicos o cualquier dia no laborable
+  especifico de tu obra.
+</p>
+
+<div class="row g-3">
+  <div class="col-md-5">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-plus-circle"></i> Anadir festivo</div>
+      <div class="card-body">
+        <form method="post" action="/config/festivos/nuevo">
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Fecha</label>
+            <input type="date" name="fecha" class="form-control form-control-sm" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Descripcion <span class="text-muted">(opcional)</span></label>
+            <input type="text" name="descripcion" class="form-control form-control-sm"
+                   placeholder="Ej: Fiesta Nacional, Asuncion, Puente..." maxlength="120">
+          </div>
+          <button class="btn btn-opl btn-sm w-100"><i class="bi bi-plus-lg"></i> Anadir festivo</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-7">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-list-ul"></i> Festivos registrados</span>
+        <span class="badge bg-secondary"><%= festivos.length %></span>
+      </div>
+      <div class="card-body p-0" style="max-height:480px;overflow:auto">
+        <% if (!festivos.length) { %>
+        <p class="text-muted small p-3 mb-0">No hay festivos configurados. El arrastre solo saltara fines de semana.</p>
+        <% } else { %>
+        <table class="table table-sm table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Fecha</th>
+              <th>Descripcion</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+          <% festivos.forEach(function(f) { %>
+            <tr>
+              <td class="small"><strong><%= f.fecha %></strong></td>
+              <td class="small text-muted"><%= f.descripcion || '--' %></td>
+              <td class="text-end" style="width:60px">
+                <form method="post" action="/config/festivos/<%= f.id_festivo %>/eliminar"
+                      onsubmit="return confirm('Eliminar festivo ' + '<%= f.fecha %>' + '?')">
+                  <button class="btn btn-sm btn-outline-danger py-0 px-1" title="Eliminar">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              </td>
+            </tr>
+          <% }); %>
+          </tbody>
+        </table>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>

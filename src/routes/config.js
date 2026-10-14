@@ -107,4 +107,54 @@ router.post('/metas/obra/:id', (req, res) => {
   res.redirect('/config/metas');
 });
 
+// ============================================================
+// FESTIVOS — Días no laborables para el arrastre inteligente
+// ============================================================
+
+router.get('/festivos', (req, res) => {
+  const conn = db.getDb();
+  const festivos = conn
+    .prepare('SELECT * FROM config_festivo ORDER BY fecha')
+    .all();
+  renderPage(req, res, 'config/festivos', {
+    title: 'Festivos',
+    active: 'mas',
+    festivos,
+  });
+});
+
+router.post('/festivos/nuevo', (req, res) => {
+  const conn = db.getDb();
+  const fecha = (req.body.fecha || '').trim();
+  const desc  = (req.body.descripcion || '').trim();
+  if (!fecha || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+    req.flash('Fecha inválida. Usa el formato YYYY-MM-DD.', 'error');
+    return res.redirect('/config/festivos');
+  }
+  try {
+    conn.prepare('INSERT INTO config_festivo(fecha,descripcion) VALUES(?,?)').run(fecha, desc);
+    req.flash(`Festivo ${fecha} añadido.`, 'success');
+  } catch (e) {
+    if (String(e.message).toLowerCase().includes('unique')) {
+      req.flash(`La fecha ${fecha} ya existe en la lista de festivos.`, 'warning');
+    } else {
+      req.flash(`Error: ${e.message}`, 'error');
+    }
+  }
+  res.redirect('/config/festivos');
+});
+
+router.post('/festivos/:id/eliminar', (req, res) => {
+  const conn = db.getDb();
+  const id = parseInt(req.params.id, 10);
+  const f = conn.prepare('SELECT fecha FROM config_festivo WHERE id_festivo=?').get(id);
+  if (f) {
+    conn.prepare('DELETE FROM config_festivo WHERE id_festivo=?').run(id);
+    req.flash(`Festivo ${f.fecha} eliminado.`, 'success');
+  } else {
+    req.flash('Festivo no encontrado.', 'error');
+  }
+  res.redirect('/config/festivos');
+});
+
 module.exports = router;

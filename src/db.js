@@ -111,6 +111,12 @@ CREATE TABLE IF NOT EXISTS log_auditoria(
     obra_id     INTEGER NOT NULL,
     detalle     TEXT    NOT NULL);
 
+-- v1.3: festivos configurables para arrastre inteligente (Task 3)
+CREATE TABLE IF NOT EXISTS config_festivo(
+    id_festivo  INTEGER PRIMARY KEY AUTOINCREMENT,
+    fecha       TEXT    NOT NULL UNIQUE,  -- 'YYYY-MM-DD'
+    descripcion TEXT    NOT NULL DEFAULT '');
+
 CREATE TABLE IF NOT EXISTS diario(
     id_diario INTEGER PRIMARY KEY AUTOINCREMENT,
     id_obra INTEGER NOT NULL REFERENCES obra(id_obra) ON DELETE RESTRICT,
@@ -223,6 +229,8 @@ const MIGRATION_V12 = [
   // 2.3 auditoría
   'CREATE TABLE IF NOT EXISTS log_auditoria(id_log INTEGER PRIMARY KEY AUTOINCREMENT, fecha TEXT NOT NULL, tipo_evento TEXT NOT NULL, entidad TEXT NOT NULL, entidad_id INTEGER NOT NULL, obra_id INTEGER NOT NULL, detalle TEXT NOT NULL)',
   'ALTER TABLE log_auditoria ADD COLUMN obra_id INTEGER', // por si la tabla ya existía sin esta columna
+];
+
 // -- MIGRACIÓN v1.2 -> v1.3 (CAE/PRL documentación trabajadores y empresas) --
 const MIGRATION_V13 = [
   `CREATE TABLE IF NOT EXISTS documentacion_persona(
@@ -247,6 +255,11 @@ const MIGRATION_V13 = [
     archivo_ruta TEXT,
     estado TEXT NOT NULL DEFAULT 'valido',
     observaciones TEXT NOT NULL DEFAULT '')`,
+  // festivos configurables para arrastre inteligente
+  `CREATE TABLE IF NOT EXISTS config_festivo(
+    id_festivo  INTEGER PRIMARY KEY AUTOINCREMENT,
+    fecha       TEXT    NOT NULL UNIQUE,
+    descripcion TEXT    NOT NULL DEFAULT '')`,
 ];
 
 let _db = null;

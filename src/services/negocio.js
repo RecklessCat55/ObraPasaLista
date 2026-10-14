@@ -52,7 +52,7 @@ function calcularFilasMensual(db, idObra, idEmpresa, mesStr) {
               p.nombre nom_c, p.apellido1 ap1_c, p.apellido2 ap2_c, p.dni dni_c,
               e.nombre emp_n, r.nombre ran_n,
               CAST(strftime('%d', d.fecha) AS INTEGER) ndia,
-              SUM(dl.horas) horas
+              COALESCE(SUM(dl.horas), 0) horas
        FROM diario_linea dl
        JOIN diario   d ON dl.id_diario  = d.id_diario
        JOIN persona  p ON dl.id_persona = p.id_persona
@@ -236,7 +236,7 @@ function informeCostes(db, idObra, mesStr) {
 
   // -- empresas con mensual abierto (o sin mensual): directamente del diario --
   let q = `SELECT dl.id_persona, dl.id_empresa, p.nombre nom, p.apellido1 ap1, p.apellido2 ap2, e.nombre emp,
-                  CAST(strftime('%d', d.fecha) AS INTEGER) ndia, SUM(dl.horas) horas
+                  CAST(strftime('%d', d.fecha) AS INTEGER) ndia, COALESCE(SUM(dl.horas), 0) horas
            FROM diario_linea dl
            JOIN diario  d ON dl.id_diario=d.id_diario
            JOIN persona p ON dl.id_persona=p.id_persona

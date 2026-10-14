@@ -57,7 +57,7 @@ npm run init-db
 npm start
 ```
 
-La app estará disponible en **http://localhost:3000** (o el puerto configurado).
+La app estará disponible en **http://localhost:5000** (o el puerto configurado con `PORT=xxxx`).
 
 ### Modo desarrollo (recarga automática)
 
@@ -148,6 +148,71 @@ src\actualizador_obrapasalista.bat
 ```
 
 Este script descarga la última versión y migra la base de datos sin perder datos.
+
+---
+
+## 💾 Copias de seguridad y restauración
+
+### Generar un backup
+
+```bash
+npm run backup
+```
+
+Crea una copia de la base de datos en:
+
+```
+~/.obrapasalista/data/backups/backup_YYYYMMDD_HHMMSS_AUTO.db
+```
+
+El fichero lleva una marca de tiempo en el nombre para facilitar la identificación.  
+La política de retención por defecto conserva los últimos **30 ficheros** y descarta los de más de **90 días**.
+
+### Backups automáticos
+
+La aplicación llama internamente a `backupCompleto()` en cada arranque. Se puede programar también con el programador de tareas de Windows o un cron en Linux:
+
+```
+# Linux: backup diario a las 02:00
+0 2 * * * /usr/bin/node /ruta/a/ObraPasaLista/src/cli.js backup >> /var/log/obra_backup.log 2>&1
+```
+
+### Verificación de integridad
+
+Cada backup generado se verifica automáticamente con `PRAGMA integrity_check`.  
+Si la verificación falla, se muestra un aviso en consola pero el proceso no se interrumpe.
+
+### Restaurar desde un backup
+
+> ⚠️ **La restauración reemplaza todos los datos actuales.** Haz siempre un backup previo antes de restaurar.
+
+1. **Para la aplicación**:
+   ```bash
+   # Ctrl+C en el terminal donde corre la app
+   ```
+
+2. **Localiza el backup** a restaurar en `~/.obrapasalista/data/backups/`
+
+3. **Reemplaza la base de datos activa**:
+   ```bash
+   # Windows PowerShell
+   Copy-Item "$env:USERPROFILE\.obrapasalista\data\backups\backup_YYYYMMDD_HHMMSS_AUTO.db" `
+             "$env:USERPROFILE\.obrapasalista\data\app.db"
+
+   # Linux / macOS
+   cp ~/.obrapasalista/data/backups/backup_YYYYMMDD_HHMMSS_AUTO.db \
+      ~/.obrapasalista/data/app.db
+   ```
+
+4. **Aplica migraciones** (por si el backup es de una versión anterior):
+   ```bash
+   npm run upgrade-db
+   ```
+
+5. **Reinicia la aplicación**:
+   ```bash
+   npm start
+   ```
 
 ---
 

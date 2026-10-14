@@ -379,8 +379,10 @@ router.post('/:id_d/arrastrar', (req, res) => {
     req.flash(e.message, 'error');
     return res.redirect(`/diario/${d.id_obra}/${fsDate(d.fecha)}`);
   }
-  // Arrastre inteligente: busca el último día laborable (salta fines de semana)
-  const ant = buscarDiarioParaArrastre(conn, d.id_obra, d.fecha);
+  // Arrastre inteligente: carga festivos configurados en BD y busca el último día laborable
+  const festivosRows = conn.prepare('SELECT fecha FROM config_festivo ORDER BY fecha').all();
+  const holidaysList = festivosRows.map((r) => r.fecha);
+  const ant = buscarDiarioParaArrastre(conn, d.id_obra, d.fecha, { holidaysList });
   if (!ant) {
     req.flash('No hay parte anterior (laborable) para arrastrar.', 'warning');
     return res.redirect(`/diario/${d.id_obra}/${fsDate(d.fecha)}`);
