@@ -15,6 +15,7 @@ Variables de entorno soportadas:
 import os, sys, sqlite3, shutil, calendar, unicodedata, re, csv, io, json, mimetypes
 from datetime import datetime, date as date_type
 from jinja2 import DictLoader
+# pyrefly: ignore [missing-import]
 from flask import (Flask, g, render_template_string, request,
                    redirect, url_for, flash, Response, send_file, abort)
 import click

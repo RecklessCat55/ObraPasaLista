@@ -1,4 +1,11 @@
 'use strict';
+// Express 5 ya no admite regex en los parámetros (':id(\\d+)').
+// Se valida en un middleware y, si no cumple, se pasa a la siguiente ruta.
+const paramMatch = (name, re) => (req, res, next) =>
+  re.test(req.params[name]) ? next() : next('route');
+const ENTERO = /^\d+$/;
+const FECHA_RAW = /^[0-9-]+$/;
+
 /**
  * routes/diario.js — parte diario de obra: selector, vista/edición de
  * líneas, meteorología, arrastre del día anterior y asignación masiva.
@@ -48,7 +55,7 @@ function loadPersXEmp(conn, empsObra) {
   return persXEmp;
 }
 
-router.get('/:id_obra(\\d+)/:fecha_raw([0-9-]+)', (req, res) => {
+router.get('/:id_m', (req, res, next) => (/^\d+$/.test(req.params.id_m) ? next() : next('route')), (req, res) => {
   const conn = db.getDb();
   const idObra = parseInt(req.params.id_obra, 10);
   let fecha;
@@ -129,7 +136,7 @@ router.get('/:id_obra(\\d+)/:fecha_raw([0-9-]+)', (req, res) => {
 });
 
 // VISTA MÓVIL TÁCTIL PARA ENCARGADOS (PASALISTA TOUCH)
-router.get('/:id_d(\\d+)/movil', (req, res) => {
+router.get('/:id_d/movil', paramMatch('id_d', ENTERO), (req, res) => {
   const conn = db.getDb();
   const idD = parseInt(req.params.id_d, 10);
   const d = conn.prepare('SELECT * FROM diario WHERE id_diario=?').get(idD);
@@ -222,8 +229,8 @@ router.post('/linea/api/guardar-horas', express.json(), (req, res) => {
       const dl = conn.prepare('SELECT * FROM diario_linea WHERE id_dl=?').get(id_dl);
       if (!dl) return res.status(404).json({ error: 'Línea no encontrada.' });
       const d = conn.prepare('SELECT * FROM diario WHERE id_diario=?').get(dl.id_diario);
-      chkMesCerrado(conn, d.id_obra, dl.id_empresa, d.fecha);
-      chkHoras(conn, dl.id_persona, d.fecha, horas, id_dl);
+      chkMesCerrado(d.id_obra, dl.id_empresa, d.fecha, conn);
+      chkHoras(dl.id_persona, d.fecha, horas, conn, id_dl);
 
       conn.prepare('UPDATE diario_linea SET horas=? WHERE id_dl=?').run(horas, id_dl);
       const total = conn.prepare('SELECT COALESCE(SUM(horas),0) t FROM diario_linea WHERE id_diario=?').get(dl.id_diario).t;
@@ -235,10 +242,10 @@ router.post('/linea/api/guardar-horas', express.json(), (req, res) => {
       const d = conn.prepare('SELECT * FROM diario WHERE id_diario=?').get(id_diario);
       if (!d) return res.status(404).json({ error: 'Diario no encontrado.' });
       chkObraActiva(conn, d.id_obra);
-      chkMesCerrado(conn, d.id_obra, id_empresa, d.fecha);
-      chkHoras(conn, id_persona, d.fecha, horas);
+      chkMesCerrado(d.id_obra, id_empresa, d.fecha, conn);
+      chkHoras(id_persona, d.fecha, horas, conn);
 
-      const idR = getRangoActivo(conn, id_persona, d.fecha);
+      const idR = getRangoActivo(id_persona, d.fecha, conn);
       const resIns = conn
         .prepare(
           `INSERT INTO diario_linea(id_diario, id_empresa, id_persona, id_rango, id_partida, asunto, horas)
