@@ -38,7 +38,7 @@
                   <tr class="<%= caducado ? 'table-danger' : '' %>">
                     <td>
                       <a href="/cae/persona/<%= dp.id_persona %>" class="fw-bold text-decoration-none">
-                        <%= dp.ap1 %> <%= dp.ap2 %>, <%= dp.nom_p %>
+                        <%= [dp.ap1, dp.ap2].filter(Boolean).join(' ') %>, <%= dp.nom_p %>
                       </a>
                       <br>
                       <small class="text-muted font-monospace"><%= dp.dni %></small>

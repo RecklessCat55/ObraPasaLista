@@ -18,13 +18,23 @@ const fs = require('fs');
 const Database = require('better-sqlite3');
 
 // --- Bootstrap: crear BD en memoria con el esquema completo ---
-const { SCHEMA, RANGOS_DEFAULT, MIGRATION_V12, seedRangos, aplicarMigracion } = require('../src/db');
+const {
+  SCHEMA,
+  RANGOS_DEFAULT,
+  MIGRATION_V12,
+  MIGRATION_V13,
+  MIGRATION_V14,
+  seedRangos,
+  aplicarMigracion,
+} = require('../src/db');
 
 const db = new Database(':memory:');
 db.pragma('foreign_keys = ON');
 db.pragma('journal_mode = WAL');
 db.exec(SCHEMA);
 aplicarMigracion(db, MIGRATION_V12, 'v1.2 (test)');
+aplicarMigracion(db, MIGRATION_V13, 'v1.3 (test)');
+aplicarMigracion(db, MIGRATION_V14, 'v1.4 (test)');
 db.prepare('INSERT OR IGNORE INTO config(id_config,limite_horas_dia,umbral_desajuste_meta) VALUES(1,24.0,2.0)').run();
 seedRangos(db);
 
@@ -58,6 +68,19 @@ test('La tabla log_auditoria existe con obra_id', () => {
 test('Rangos por defecto sembrados', () => {
   const n = db.prepare('SELECT count(*) c FROM rango').get().c;
   assert(n >= RANGOS_DEFAULT.length, `Esperados >= ${RANGOS_DEFAULT.length}, obtenidos ${n}`);
+});
+
+test('Tabla config_festivo existe', () => {
+  db.prepare('SELECT count(*) FROM config_festivo').get();
+});
+
+test('Columnas deleted_at existen en persona, empresa y obra', () => {
+  const colsP = db.prepare("PRAGMA table_info('persona')").all();
+  assert(colsP.some((c) => c.name === 'deleted_at'), 'Falta deleted_at en persona');
+  const colsE = db.prepare("PRAGMA table_info('empresa')").all();
+  assert(colsE.some((c) => c.name === 'deleted_at'), 'Falta deleted_at en empresa');
+  const colsO = db.prepare("PRAGMA table_info('obra')").all();
+  assert(colsO.some((c) => c.name === 'deleted_at'), 'Falta deleted_at en obra');
 });
 
 // ======================== 2. DATOS DE PRUEBA ========================
@@ -248,6 +271,61 @@ test('ValidationError es un Error con nombre correcto', () => {
   assert(e instanceof Error);
   assert.strictEqual(e.name, 'ValidationError');
   assert.strictEqual(e.message, 'test');
+});
+
+// ======================== 9. SOFT DELETES ========================
+console.log('\n9. Soft Deletes (v1.4)');
+
+test('Soft delete en persona preserva histórico y la excluye de listados activos', () => {
+  // Crear persona de prueba para soft delete
+  db.prepare("INSERT INTO persona(nombre,apellido1,dni,id_empresa) VALUES('Luis','Borrable','99999999Z',1)").run();
+  const p = db.prepare("SELECT id_persona FROM persona WHERE dni='99999999Z'").get();
+  assert(p, 'Persona creada');
+
+  // Añadir línea en diario_linea
+  db.prepare("INSERT INTO diario_linea(id_diario,id_empresa,id_persona,horas,asunto) VALUES(1,1,?,4,'Tarea previa')").run(p.id_persona);
+
+  // Soft delete
+  const now = new Date().toISOString();
+  db.prepare("UPDATE persona SET deleted_at=?, estado='inactiva' WHERE id_persona=?").run(now, p.id_persona);
+
+  // Consulta activa no la debe devolver
+  const activa = db.prepare("SELECT * FROM persona WHERE id_persona=? AND deleted_at IS NULL").get(p.id_persona);
+  assert.strictEqual(activa, undefined, 'No debe aparecer como activa');
+
+  // Histórico en diario_linea sigue existiendo
+  const linea = db.prepare("SELECT * FROM diario_linea WHERE id_persona=?").get(p.id_persona);
+  assert(linea, 'El registro histórico debe conservarse intacto');
+  assert.strictEqual(linea.horas, 4);
+
+  // La persona existe con deleted_at para auditoría
+  const soft = db.prepare("SELECT * FROM persona WHERE id_persona=?").get(p.id_persona);
+  assert(soft.deleted_at !== null, 'deleted_at debe tener timestamp');
+  assert.strictEqual(soft.estado, 'inactiva');
+});
+
+test('Soft delete en obra preserva diarios e histórico', () => {
+  db.prepare("INSERT INTO obra(codigo,nombre) VALUES('OBS01','Obra soft delete')").run();
+  const ob = db.prepare("SELECT id_obra FROM obra WHERE codigo='OBS01'").get();
+  db.prepare("INSERT INTO diario(id_obra,fecha) VALUES(?,'2026-09-15')").run(ob.id_obra);
+
+  // Soft delete
+  const now = new Date().toISOString();
+  db.prepare("UPDATE obra SET deleted_at=?, estado='finalizada' WHERE id_obra=?").run(now, ob.id_obra);
+
+  // Filtrada en listados normales
+  const visible = db.prepare("SELECT * FROM obra WHERE id_obra=? AND deleted_at IS NULL").get(ob.id_obra);
+  assert.strictEqual(visible, undefined);
+
+  // Accesible para informes por id directo
+  const persistente = db.prepare("SELECT * FROM obra WHERE id_obra=?").get(ob.id_obra);
+  assert(persistente, 'Debe persistir en BD');
+  assert.strictEqual(persistente.estado, 'finalizada');
+  assert(persistente.deleted_at !== null);
+
+  // El diario sigue existiendo
+  const d = db.prepare("SELECT * FROM diario WHERE id_obra=?").get(ob.id_obra);
+  assert(d, 'El diario debe preservarse');
 });
 
 // ======================== RESUMEN ========================

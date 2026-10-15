@@ -38,12 +38,12 @@ router.post('/', (req, res) => {
 
 router.get('/metas', (req, res) => {
   const conn = db.getDb();
-  const empresas = conn.prepare("SELECT * FROM empresa WHERE estado='activa' ORDER BY nombre").all();
-  const obras = conn.prepare("SELECT * FROM obra ORDER BY (estado='finalizada'), nombre").all();
+  const empresas = conn.prepare("SELECT * FROM empresa WHERE estado='activa' AND deleted_at IS NULL ORDER BY nombre").all();
+  const obras = conn.prepare("SELECT * FROM obra WHERE deleted_at IS NULL ORDER BY (estado='finalizada'), nombre").all();
   const personas = conn
     .prepare(
       `SELECT p.*, e.nombre nom_e FROM persona p LEFT JOIN empresa e ON p.id_empresa=e.id_empresa
-       WHERE p.estado='activa' ORDER BY p.apellido1, p.nombre`
+       WHERE p.estado='activa' AND p.deleted_at IS NULL ORDER BY p.apellido1, p.nombre`
     )
     .all();
   const umbral = getUmbralDesajuste(conn);

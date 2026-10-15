@@ -71,7 +71,7 @@
           <div class="d-flex justify-content-between align-items-start mb-2">
             <div>
               <div class="fw-bold text-white fs-6">
-                <%= l.ap1 %> <%= l.ap2 %>, <%= l.nom_p %>
+                <%= [l.ap1, l.ap2].filter(Boolean).join(' ') %>, <%= l.nom_p %>
                 <span class="badge <%= docInfo.badgeClass %> p-1 ms-1" title="<%= docInfo.titulo %>" style="font-size:0.65rem">
                   <i class="bi <%= docInfo.icono %>"></i> <%= docInfo.estado.toUpperCase() %>
                 </span>

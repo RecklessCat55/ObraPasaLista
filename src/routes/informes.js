@@ -12,7 +12,14 @@ const { generarCostesExcel } = require('../services/excel');
 
 router.get('/costes', (req, res) => {
   const conn = db.getDb();
-  const obras = conn.prepare('SELECT * FROM obra ORDER BY nombre').all();
+  const incluirEliminadas = req.query.incluir_eliminadas === '1';
+  const obras = conn
+    .prepare(
+      incluirEliminadas
+        ? 'SELECT * FROM obra ORDER BY nombre'
+        : 'SELECT * FROM obra WHERE deleted_at IS NULL ORDER BY nombre'
+    )
+    .all();
   const idObra = parseInt(req.query.id_obra, 10) || null;
   const mesStr = (req.query.mes || '').trim() || fsDate(new Date()).slice(0, 7);
   let filas = null;
@@ -40,6 +47,7 @@ router.get('/costes', (req, res) => {
     dias_tabla: diasTabla,
     total_horas: totalHoras,
     total_coste: totalCoste,
+    incluir_eliminadas: incluirEliminadas,
     hhmm,
   });
 });

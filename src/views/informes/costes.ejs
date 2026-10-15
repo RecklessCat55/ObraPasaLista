@@ -6,10 +6,16 @@
   <div class="col-md-4"><label class="form-label small mb-1">Obra</label>
     <select name="id_obra" class="form-select form-select-sm" required>
       <option value="">— Selecciona —</option>
-      <% obras.forEach(function(o) { %><option value="<%= o.id_obra %>" <%= (obra_sel && o.id_obra===obra_sel.id_obra) ? 'selected' : '' %>><%= o.nombre %></option><% }); %>
+      <% obras.forEach(function(o) { %><option value="<%= o.id_obra %>" <%= (obra_sel && o.id_obra===obra_sel.id_obra) ? 'selected' : '' %>><%= o.nombre %><%= o.deleted_at ? ' (eliminada)' : '' %></option><% }); %>
     </select></div>
   <div class="col-md-3"><label class="form-label small mb-1">Mes</label>
     <input type="month" name="mes" class="form-control form-control-sm" value="<%= mes_str %>"></div>
+  <div class="col-auto">
+    <div class="form-check mb-2">
+      <input class="form-check-input" type="checkbox" name="incluir_eliminadas" value="1" id="chkInc" <%= (typeof incluir_eliminadas !== 'undefined' && incluir_eliminadas) ? 'checked' : '' %>>
+      <label class="form-check-label small" for="chkInc">Incluir eliminadas</label>
+    </div>
+  </div>
   <div class="col-auto"><button class="btn btn-opl btn-sm">Ver informe</button></div>
 </form>
 </div></div>

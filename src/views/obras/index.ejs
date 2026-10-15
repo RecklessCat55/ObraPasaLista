@@ -1,6 +1,13 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h2 class="h4 mb-0"><i class="bi bi-buildings"></i> Obras</h2>
-  <a href="/obras/nueva" class="btn btn-opl btn-sm"><i class="bi bi-plus"></i> Nueva obra</a>
+  <div class="d-flex gap-2">
+    <% if (typeof ver_eliminadas !== 'undefined' && ver_eliminadas) { %>
+      <a href="/obras/" class="btn btn-sm btn-outline-warning" title="Ocultar obras eliminadas"><i class="bi bi-eye-slash"></i> Ocultar eliminadas</a>
+    <% } else { %>
+      <a href="/obras/?eliminadas=1" class="btn btn-sm btn-outline-secondary" title="Ver obras eliminadas"><i class="bi bi-archive"></i> Ver eliminadas</a>
+    <% } %>
+    <a href="/obras/nueva" class="btn btn-opl btn-sm"><i class="bi bi-plus"></i> Nueva obra</a>
+  </div>
 </div>
 <div class="card"><div class="card-body p-0">
 <table class="table table-hover mb-0 table-sm">
@@ -12,7 +19,10 @@
   <% obras.forEach(function(o) { %>
   <tr>
     <td class="font-monospace fw-bold"><%= o.codigo %></td>
-    <td><%= o.nombre %></td>
+    <td>
+      <%= o.nombre %>
+      <% if (o.deleted_at) { %><span class="badge bg-danger ms-1" style="font-size:.65rem">eliminada</span><% } %>
+    </td>
     <td><span class="badge badge-<%= o.estado %>"><%= o.estado %></span></td>
     <td class="text-end">
       <a href="/obras/<%= o.id_obra %>/estado" class="btn btn-sm btn-outline-warning py-0" title="Estado de obra"><i class="bi bi-clipboard-data"></i></a>

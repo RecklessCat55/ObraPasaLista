@@ -15,10 +15,11 @@ router.get('/', (req, res) => {
        FROM empresa_relacion r
        JOIN empresa ep ON r.id_empresa_principal=ep.id_empresa
        JOIN empresa es ON r.id_empresa_subcontrata=es.id_empresa
+       WHERE ep.deleted_at IS NULL AND es.deleted_at IS NULL
        ORDER BY ep.nombre, es.nombre`
     )
     .all();
-  const emps = conn.prepare("SELECT * FROM empresa WHERE estado='activa' ORDER BY nombre").all();
+  const emps = conn.prepare("SELECT * FROM empresa WHERE estado='activa' AND deleted_at IS NULL ORDER BY nombre").all();
   renderPage(req, res, 'subcontratas/index', { title: 'Subcontratas', active: 'mas', rels, emps });
 });
 

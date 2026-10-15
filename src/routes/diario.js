@@ -27,7 +27,7 @@ const M_ICO = Object.fromEntries(METEO);
 
 router.get('/', (req, res) => {
   const conn = db.getDb();
-  const obras = conn.prepare("SELECT * FROM obra WHERE estado='activa' ORDER BY nombre").all();
+  const obras = conn.prepare("SELECT * FROM obra WHERE estado='activa' AND deleted_at IS NULL ORDER BY nombre").all();
   renderPage(req, res, 'diario/sel', { title: 'Diario', active: 'diario', obras });
 });
 
@@ -42,7 +42,7 @@ function loadPersXEmp(conn, empsObra) {
   const persXEmp = {};
   for (const e of empsObra) {
     persXEmp[e.id_empresa] = conn
-      .prepare("SELECT * FROM persona WHERE id_empresa=? AND estado='activa' ORDER BY apellido1,nombre")
+      .prepare("SELECT * FROM persona WHERE id_empresa=? AND estado='activa' AND deleted_at IS NULL ORDER BY apellido1,nombre")
       .all(e.id_empresa);
   }
   return persXEmp;
@@ -95,7 +95,7 @@ router.get('/:id_obra(\\d+)/:fecha_raw([0-9-]+)', (req, res) => {
   const empsObra = conn
     .prepare(
       `SELECT e.* FROM empresa e JOIN obra_empresa oe ON e.id_empresa=oe.id_empresa
-       WHERE oe.id_obra=? ORDER BY e.nombre`
+       WHERE oe.id_obra=? AND e.estado='activa' AND e.deleted_at IS NULL ORDER BY e.nombre`
     )
     .all(idObra);
 
@@ -160,7 +160,7 @@ router.get('/:id_d(\\d+)/movil', (req, res) => {
     .prepare(
       `SELECT e.id_empresa, e.nombre nom_e
        FROM empresa e JOIN obra_empresa oe ON e.id_empresa=oe.id_empresa
-       WHERE oe.id_obra=? AND e.estado='activa'
+       WHERE oe.id_obra=? AND e.estado='activa' AND e.deleted_at IS NULL
        ORDER BY e.nombre`
     )
     .all(d.id_obra);
@@ -175,7 +175,7 @@ router.get('/:id_d(\\d+)/movil', (req, res) => {
                 p.id_empresa, e.nombre nom_e
          FROM persona p
          JOIN empresa e ON p.id_empresa=e.id_empresa
-         WHERE p.id_empresa IN (${placeholders}) AND p.estado='activa'
+         WHERE p.id_empresa IN (${placeholders}) AND p.estado='activa' AND p.deleted_at IS NULL
          ORDER BY e.nombre, p.apellido1, p.nombre`
       )
       .all(...idEmps);
@@ -396,16 +396,16 @@ router.post('/:id_d/arrastrar', (req, res) => {
       .get(idD, l.id_persona, l.id_empresa);
     if (yaExiste) continue;
     try {
-      // Validar que la persona sigue activa
-      const persona = conn.prepare('SELECT estado FROM persona WHERE id_persona=?').get(l.id_persona);
-      if (!persona || persona.estado !== 'activa') {
-        bloqueadas.push(`Persona #${l.id_persona}: inactiva o no encontrada.`);
+      // Validar que la persona sigue activa y no eliminada
+      const persona = conn.prepare('SELECT estado, deleted_at FROM persona WHERE id_persona=?').get(l.id_persona);
+      if (!persona || persona.estado !== 'activa' || persona.deleted_at) {
+        bloqueadas.push(`Persona #${l.id_persona}: inactiva, eliminada o no encontrada.`);
         continue;
       }
-      // Validar que la empresa sigue activa
-      const empresa = conn.prepare('SELECT estado FROM empresa WHERE id_empresa=?').get(l.id_empresa);
-      if (!empresa || empresa.estado !== 'activa') {
-        bloqueadas.push(`Empresa #${l.id_empresa}: inactiva o no encontrada.`);
+      // Validar que la empresa sigue activa y no eliminada
+      const empresa = conn.prepare('SELECT estado, deleted_at FROM empresa WHERE id_empresa=?').get(l.id_empresa);
+      if (!empresa || empresa.estado !== 'activa' || empresa.deleted_at) {
+        bloqueadas.push(`Empresa #${l.id_empresa}: inactiva, eliminada o no encontrada.`);
         continue;
       }
       chkMesCerrado(d.id_obra, l.id_empresa, d.fecha, conn);
@@ -447,7 +447,7 @@ router.get('/:id_diario/asignacion-masiva', (req, res) => {
   const empsObra = conn
     .prepare(
       `SELECT e.* FROM empresa e JOIN obra_empresa oe ON e.id_empresa=oe.id_empresa
-       WHERE oe.id_obra=? ORDER BY e.nombre`
+       WHERE oe.id_obra=? AND e.estado='activa' AND e.deleted_at IS NULL ORDER BY e.nombre`
     )
     .all(d.id_obra);
   const partidas = conn.prepare('SELECT * FROM partida_obra WHERE id_obra=? ORDER BY codigo').all(d.id_obra);

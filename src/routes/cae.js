@@ -26,7 +26,7 @@ router.get('/alertas', (req, res) => {
        FROM documentacion_persona dp
        JOIN persona p ON dp.id_persona=p.id_persona
        LEFT JOIN empresa e ON p.id_empresa=e.id_empresa
-       WHERE dp.fecha_caducidad IS NOT NULL AND dp.fecha_caducidad <= date(?, '+30 days')
+       WHERE p.deleted_at IS NULL AND dp.fecha_caducidad IS NOT NULL AND dp.fecha_caducidad <= date(?, '+30 days')
        ORDER BY dp.fecha_caducidad ASC`
     )
     .all(hoy);
@@ -37,7 +37,7 @@ router.get('/alertas', (req, res) => {
       `SELECT de.*, e.nombre nom_e
        FROM documentacion_empresa de
        JOIN empresa e ON de.id_empresa=e.id_empresa
-       WHERE de.fecha_caducidad IS NOT NULL AND de.fecha_caducidad <= date(?, '+30 days')
+       WHERE e.deleted_at IS NULL AND de.fecha_caducidad IS NOT NULL AND de.fecha_caducidad <= date(?, '+30 days')
        ORDER BY de.fecha_caducidad ASC`
     )
     .all(hoy);

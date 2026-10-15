@@ -18,7 +18,7 @@ router.get('/', (req, res) => {
     .filter((f) => f.endsWith('.db'))
     .sort()
     .reverse();
-  const obras = db.getDb().prepare('SELECT * FROM obra ORDER BY nombre').all();
+  const obras = db.getDb().prepare('SELECT * FROM obra WHERE deleted_at IS NULL ORDER BY nombre').all();
   renderPage(req, res, 'backup/index', { title: 'Backup', active: 'mas', bks, obras });
 });
 

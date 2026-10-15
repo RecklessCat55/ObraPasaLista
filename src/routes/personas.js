@@ -14,11 +14,15 @@ router.get('/', (req, res) => {
   const conn = db.getDb();
   const q = (req.query.q || '').trim();
   const ie = (req.query.id_empresa || '').trim();
+  const verEliminadas = req.query.eliminadas === '1';
   let sql = `SELECT p.*, e.nombre nom_e,
       (SELECT r.nombre FROM persona_rango pr JOIN rango r ON pr.id_rango=r.id_rango
        WHERE pr.id_persona=p.id_persona AND pr.fecha_fin IS NULL
        ORDER BY pr.fecha_inicio DESC LIMIT 1) rango_actual
       FROM persona p LEFT JOIN empresa e ON p.id_empresa=e.id_empresa WHERE 1=1`;
+  if (!verEliminadas) {
+    sql += ' AND p.deleted_at IS NULL';
+  }
   const params = [];
   if (q) {
     sql += " AND (p.nombre||' '||p.apellido1||' '||p.apellido2||' '||p.dni||' '||p.oficio LIKE ?)";
@@ -30,13 +34,13 @@ router.get('/', (req, res) => {
   }
   sql += ' ORDER BY p.apellido1, p.nombre';
   const pers = conn.prepare(sql).all(...params);
-  const emps = conn.prepare('SELECT * FROM empresa ORDER BY nombre').all();
-  renderPage(req, res, 'personas/index', { title: 'Personas', active: 'mas', pers, emps, q, ie });
+  const emps = conn.prepare('SELECT * FROM empresa WHERE deleted_at IS NULL ORDER BY nombre').all();
+  renderPage(req, res, 'personas/index', { title: 'Personas', active: 'mas', pers, emps, q, ie, ver_eliminadas: verEliminadas });
 });
 
 router.get('/nueva', (req, res) => {
   const conn = db.getDb();
-  const emps = conn.prepare("SELECT * FROM empresa WHERE estado='activa' ORDER BY nombre").all();
+  const emps = conn.prepare("SELECT * FROM empresa WHERE estado='activa' AND deleted_at IS NULL ORDER BY nombre").all();
   const rangos = conn.prepare("SELECT * FROM rango WHERE codigo!='SIN_ESPECIFICAR' ORDER BY codigo").all();
   renderPage(req, res, 'personas/form', {
     title: 'Nueva persona',
@@ -51,7 +55,7 @@ router.get('/nueva', (req, res) => {
 
 router.post('/nueva', (req, res) => {
   const conn = db.getDb();
-  const emps = conn.prepare("SELECT * FROM empresa WHERE estado='activa' ORDER BY nombre").all();
+  const emps = conn.prepare("SELECT * FROM empresa WHERE estado='activa' AND deleted_at IS NULL ORDER BY nombre").all();
   const rangos = conn.prepare("SELECT * FROM rango WHERE codigo!='SIN_ESPECIFICAR' ORDER BY codigo").all();
   const f = req.body;
   const nom = (f.nombre || '').trim();
@@ -117,7 +121,7 @@ router.get('/:id/editar', (req, res) => {
     req.flash('No encontrada.', 'error');
     return res.redirect('/personas/');
   }
-  const emps = conn.prepare("SELECT * FROM empresa WHERE estado='activa' ORDER BY nombre").all();
+  const emps = conn.prepare("SELECT * FROM empresa WHERE estado='activa' AND deleted_at IS NULL ORDER BY nombre").all();
   const rangos = conn.prepare('SELECT * FROM rango ORDER BY codigo').all();
   const ra = conn
     .prepare(
@@ -141,7 +145,7 @@ router.post('/:id/editar', (req, res) => {
     req.flash('No encontrada.', 'error');
     return res.redirect('/personas/');
   }
-  const emps = conn.prepare("SELECT * FROM empresa WHERE estado='activa' ORDER BY nombre").all();
+  const emps = conn.prepare("SELECT * FROM empresa WHERE estado='activa' AND deleted_at IS NULL ORDER BY nombre").all();
   const rangos = conn.prepare('SELECT * FROM rango ORDER BY codigo').all();
   const ra = conn
     .prepare(
@@ -216,17 +220,9 @@ router.post('/:id/eliminar', (req, res) => {
     req.flash('Persona no encontrada.', 'error');
     return res.redirect('/personas/');
   }
-  const uso = usoPersona(conn, id);
-  if (uso.diario || uso.mensual) {
-    req.flash(
-      `No se puede eliminar: tiene ${uso.diario} parte(s) diaria(s) y ` +
-        `${uso.mensual} registro(s) mensual(es). Ponla como inactiva o anonimízala.`,
-      'error'
-    );
-    return res.redirect('/personas/');
-  }
-  conn.prepare('DELETE FROM persona WHERE id_persona=?').run(id);
-  req.flash(`${p.apellido1}, ${p.nombre} eliminada definitivamente.`, 'success');
+  const now = new Date().toISOString();
+  conn.prepare("UPDATE persona SET deleted_at=?, estado='inactiva' WHERE id_persona=?").run(now, id);
+  req.flash(`${p.apellido1}, ${p.nombre} eliminada.`, 'success');
   res.redirect('/personas/');
 });
 

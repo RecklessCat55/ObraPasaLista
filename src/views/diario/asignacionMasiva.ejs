@@ -38,7 +38,7 @@
         <input class="form-check-input" type="checkbox" name="personas" value="<%= p.id_persona %>"
                id="am-p<%= p.id_persona %>" disabled>
         <label class="form-check-label small" for="am-p<%= p.id_persona %>">
-          <%= p.apellido1 %> <%= p.apellido2 %>, <%= p.nombre %> <span class="text-muted">(<%= p.oficio %>)</span>
+          <%= [p.apellido1, p.apellido2].filter(Boolean).join(' ') %>, <%= p.nombre %><% if (p.oficio) { %> <span class="text-muted">(<%= p.oficio %>)</span><% } %>
         </label>
       </div>
       <% }); %>

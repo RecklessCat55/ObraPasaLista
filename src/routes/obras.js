@@ -14,8 +14,14 @@ const { ValidationError } = require('../utils');
 
 router.get('/', (req, res) => {
   const conn = db.getDb();
-  const obras = conn.prepare('SELECT * FROM obra ORDER BY estado, nombre').all();
-  renderPage(req, res, 'obras/index', { title: 'Obras', active: 'mas', obras });
+  const verEliminadas = req.query.eliminadas === '1';
+  let sql = 'SELECT * FROM obra WHERE 1=1';
+  if (!verEliminadas) {
+    sql += ' AND deleted_at IS NULL';
+  }
+  sql += ' ORDER BY estado, nombre';
+  const obras = conn.prepare(sql).all();
+  renderPage(req, res, 'obras/index', { title: 'Obras', active: 'mas', obras, ver_eliminadas: verEliminadas });
 });
 
 router.get('/nueva', (req, res) => {
@@ -44,12 +50,12 @@ function loadObraFormExtras(conn, id) {
   const oes = conn
     .prepare(
       `SELECT oe.id_oe,e.nombre,e.id_empresa FROM obra_empresa oe
-       JOIN empresa e ON oe.id_empresa=e.id_empresa WHERE oe.id_obra=?`
+       JOIN empresa e ON oe.id_empresa=e.id_empresa WHERE oe.id_obra=? AND e.deleted_at IS NULL`
     )
     .all(id);
   const disp = conn
     .prepare(
-      `SELECT * FROM empresa WHERE estado='activa' AND id_empresa NOT IN
+      `SELECT * FROM empresa WHERE estado='activa' AND deleted_at IS NULL AND id_empresa NOT IN
        (SELECT id_empresa FROM obra_empresa WHERE id_obra=?) ORDER BY nombre`
     )
     .all(id);
@@ -180,13 +186,15 @@ router.post('/:id_obra/rem-partida/:id_p', (req, res) => {
 router.post('/:id/eliminar', (req, res) => {
   const conn = db.getDb();
   const id = parseInt(req.params.id, 10);
-  try {
-    const ob = conn.prepare('SELECT nombre FROM obra WHERE id_obra=?').get(id);
-    conn.prepare('DELETE FROM obra WHERE id_obra=?').run(id);
-    req.flash(`Obra "${ob ? ob.nombre : ''}" eliminada.`, 'success');
-  } catch (e) {
-    req.flash('No se puede eliminar: tiene registros vinculados.', 'error');
+  const ob = conn.prepare('SELECT nombre FROM obra WHERE id_obra=?').get(id);
+  if (!ob) {
+    req.flash('Obra no encontrada.', 'error');
+    return res.redirect('/obras/');
   }
+  const now = new Date().toISOString();
+  conn.prepare("UPDATE obra SET deleted_at=?, estado='finalizada' WHERE id_obra=?").run(now, id);
+  logEvent(conn, 'OBRA_ELIMINADA', 'obra', id, id, { nombre: ob.nombre, soft_delete: true }, req.flash);
+  req.flash(`Obra "${ob.nombre}" eliminada.`, 'success');
   res.redirect('/obras/');
 });
 

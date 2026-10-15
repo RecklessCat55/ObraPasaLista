@@ -58,7 +58,7 @@
     <td class="small"><%= f.empresa_cache %></td>
     <td class="text-center"><%= f.es_subcontrata ? '✓' : '' %></td>
     <td><span class="badge bg-secondary" style="font-size:.62rem"><%= f.rango_cache || '—' %></span></td>
-    <td><%= f.ap1_c %> <%= f.ap2_c %>, <%= f.nom_c %></td>
+    <td><%= [f.ap1_c, f.ap2_c].filter(Boolean).join(' ') %>, <%= f.nom_c %></td>
     <td class="font-monospace" style="font-size:.8rem"><%= f.dni_c %></td>
     <% f.dias_arr.forEach(function(h) { %><td class="htd"><%= hhmm(h) %></td><% }); %>
     <td class="htd fw-bold text-warning"><%= hhmm(f.total_mes) %></td>

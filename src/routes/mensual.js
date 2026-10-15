@@ -22,8 +22,8 @@ router.get('/', (req, res) => {
        ORDER BY m.mes DESC, o.nombre, e.nombre`
     )
     .all();
-  const obras = conn.prepare("SELECT * FROM obra WHERE estado='activa' ORDER BY nombre").all();
-  const emps = conn.prepare("SELECT * FROM empresa WHERE estado='activa' ORDER BY nombre").all();
+  const obras = conn.prepare("SELECT * FROM obra WHERE estado='activa' AND deleted_at IS NULL ORDER BY nombre").all();
+  const emps = conn.prepare("SELECT * FROM empresa WHERE estado='activa' AND deleted_at IS NULL ORDER BY nombre").all();
   const hoyMes = fsDate(new Date()).slice(0, 7);
   renderPage(req, res, 'mensual/sel', { title: 'Mensuales', active: 'mas', mens, obras, emps, hoy_mes: hoyMes });
 });

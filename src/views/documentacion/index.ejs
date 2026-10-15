@@ -16,7 +16,7 @@
   <div class="col-md-4"><label class="form-label small mb-1">Partida</label>
     <select name="id_partida" class="form-select form-select-sm">
       <option value="">— General (sin partida) —</option>
-      <% partidas.forEach(function(p) { %><option value="<%= p.id_partida %>" <%= partida_foco===p.id_partida ? 'selected' : '' %>><%= p.codigo %> <%= p.descripcion %></option><% }); %>
+      <% partidas.forEach(function(p) { %><option value="<%= p.id_partida %>" <%= partida_foco===p.id_partida ? 'selected' : '' %>><%= p.codigo %><%= p.descripcion ? ' ' + p.descripcion : '' %></option><% }); %>
     </select></div>
   <div class="col-md-3"><label class="form-label small mb-1">Dentro de <span class="text-muted">(opc.)</span></label>
     <select name="id_padre" class="form-select form-select-sm">
@@ -30,7 +30,7 @@
 
 <% grupos.forEach(function(g) { %>
 <div class="sec <%= (partida_foco && g.partida && g.partida.id_partida===partida_foco) ? 'border-warning' : '' %>">
-  <% if (g.partida) { %><i class="bi bi-bookmark"></i> <%= g.partida.codigo %> — <%= g.partida.descripcion %>
+  <% if (g.partida) { %><i class="bi bi-bookmark"></i> <%= g.partida.codigo %><%= g.partida.descripcion ? ' — ' + g.partida.descripcion : '' %>
   <% } else { %><i class="bi bi-archive"></i> General (sin partida asociada)<% } %>
 </div>
 <% if (g.carpetas.length) { %>

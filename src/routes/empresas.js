@@ -11,15 +11,17 @@ const { ValidationError } = require('../utils');
 
 router.get('/', (req, res) => {
   const conn = db.getDb();
-  const emps = conn
-    .prepare(
-      `SELECT e.*,
-        (SELECT count(*) FROM persona WHERE id_empresa=e.id_empresa) n_p,
-        (SELECT count(*) FROM obra_empresa WHERE id_empresa=e.id_empresa) n_o
-        FROM empresa e ORDER BY e.nombre`
-    )
-    .all();
-  renderPage(req, res, 'empresas/index', { title: 'Empresas', active: 'mas', emps });
+  const verEliminadas = req.query.eliminadas === '1';
+  let sql = `SELECT e.*,
+        (SELECT count(*) FROM persona WHERE id_empresa=e.id_empresa AND deleted_at IS NULL) n_p,
+        (SELECT count(*) FROM obra_empresa oe JOIN obra o ON oe.id_obra=o.id_obra WHERE oe.id_empresa=e.id_empresa AND o.deleted_at IS NULL) n_o
+        FROM empresa e WHERE 1=1`;
+  if (!verEliminadas) {
+    sql += ' AND e.deleted_at IS NULL';
+  }
+  sql += ' ORDER BY e.nombre';
+  const emps = conn.prepare(sql).all();
+  renderPage(req, res, 'empresas/index', { title: 'Empresas', active: 'mas', emps, ver_eliminadas: verEliminadas });
 });
 
 router.get('/nueva', (req, res) => {
@@ -99,29 +101,9 @@ router.post('/:id/eliminar', (req, res) => {
     req.flash('Empresa no encontrada.', 'error');
     return res.redirect('/empresas/');
   }
-  // Comprobar si hay registros vinculados que impidan el borrado duro
-  const nPersonas = conn.prepare('SELECT count(*) c FROM persona WHERE id_empresa=?').get(id).c;
-  const nObras = conn.prepare('SELECT count(*) c FROM obra_empresa WHERE id_empresa=?').get(id).c;
-  const nDiario = conn.prepare('SELECT count(*) c FROM diario_linea WHERE id_empresa=?').get(id).c;
-  const nMensual = conn.prepare('SELECT count(*) c FROM mensual WHERE id_empresa=?').get(id).c;
-
-  if (nPersonas || nObras || nDiario || nMensual) {
-    // Borrado suave: marcar como 'baja' en lugar de destruir datos históricos
-    conn.prepare("UPDATE empresa SET estado='baja' WHERE id_empresa=?").run(id);
-    req.flash(
-      `Empresa "${e.nombre}" marcada como BAJA (tiene ${nPersonas} persona(s), ` +
-        `${nObras} obra(s), ${nDiario} línea(s) de diario y ${nMensual} mensual(es) vinculados). ` +
-        'No se puede eliminar definitivamente mientras existan registros asociados.',
-      'warning'
-    );
-  } else {
-    try {
-      conn.prepare('DELETE FROM empresa WHERE id_empresa=?').run(id);
-      req.flash(`Empresa "${e.nombre}" eliminada definitivamente.`, 'success');
-    } catch (err) {
-      req.flash(`Error: ${err.message}`, 'error');
-    }
-  }
+  const now = new Date().toISOString();
+  conn.prepare("UPDATE empresa SET deleted_at=?, estado='baja' WHERE id_empresa=?").run(now, id);
+  req.flash(`Empresa "${e.nombre}" eliminada.`, 'success');
   res.redirect('/empresas/');
 });
 

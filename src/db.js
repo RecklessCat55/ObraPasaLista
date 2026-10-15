@@ -21,7 +21,8 @@ CREATE TABLE IF NOT EXISTS empresa(
     id_empresa INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT NOT NULL UNIQUE,
     estado TEXT NOT NULL DEFAULT 'activa',
-    meta_horas_dia REAL);
+    meta_horas_dia REAL,
+    deleted_at TEXT DEFAULT NULL);
 
 CREATE TABLE IF NOT EXISTS empresa_relacion(
     id_rel INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,7 +46,8 @@ CREATE TABLE IF NOT EXISTS persona(
     oficio TEXT NOT NULL DEFAULT '',
     estado TEXT NOT NULL DEFAULT 'activa',
     meta_horas_dia REAL,
-    precio_hora_override REAL);
+    precio_hora_override REAL,
+    deleted_at TEXT DEFAULT NULL);
 
 CREATE TABLE IF NOT EXISTS persona_rango(
     id_pr INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -57,7 +59,8 @@ CREATE TABLE IF NOT EXISTS obra(
     id_obra INTEGER PRIMARY KEY AUTOINCREMENT,
     codigo TEXT NOT NULL UNIQUE, nombre TEXT NOT NULL,
     estado TEXT NOT NULL DEFAULT 'activa',
-    meta_horas_dia REAL);
+    meta_horas_dia REAL,
+    deleted_at TEXT DEFAULT NULL);
 
 CREATE TABLE IF NOT EXISTS obra_empresa(
     id_oe INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -262,6 +265,13 @@ const MIGRATION_V13 = [
     descripcion TEXT    NOT NULL DEFAULT '')`,
 ];
 
+// -- MIGRACIÓN v1.3 -> v1.4 (Soft deletes en tablas críticas: persona, empresa, obra) --
+const MIGRATION_V14 = [
+  'ALTER TABLE persona ADD COLUMN deleted_at TEXT DEFAULT NULL',
+  'ALTER TABLE empresa ADD COLUMN deleted_at TEXT DEFAULT NULL',
+  'ALTER TABLE obra    ADD COLUMN deleted_at TEXT DEFAULT NULL',
+];
+
 let _db = null;
 
 /** Abre (o devuelve) la conexión única a SQLite, con los PRAGMAs de rigor. */
@@ -311,6 +321,7 @@ function initIfNeeded(db) {
   // Si la BD viene de una versión anterior, aplicamos migraciones de forma idempotente.
   aplicarMigracion(db, MIGRATION_V12, 'v1.2 (auto)');
   aplicarMigracion(db, MIGRATION_V13, 'v1.3 (auto)');
+  aplicarMigracion(db, MIGRATION_V14, 'v1.4 (auto)');
   const cfg = db.prepare('SELECT 1 FROM config WHERE id_config=1').get();
   if (!cfg) {
     db.prepare(
@@ -320,21 +331,22 @@ function initIfNeeded(db) {
   seedRangos(db);
 }
 
-/** flask --app app init-db : instalación limpia, ya en v1.3. */
+/** flask --app app init-db : instalación limpia, ya en v1.4. */
 function cliInitDb(db) {
   db.exec(SCHEMA);
   db.prepare(
     'INSERT OR IGNORE INTO config(id_config,limite_horas_dia,umbral_desajuste_meta) VALUES(1,24.0,2.0)'
   ).run();
   seedRangos(db);
-  console.log('OK BD inicializada (v1.3).');
+  console.log('OK BD inicializada (v1.4).');
 }
 
-/** flask --app app upgrade-db : migra una BD v1.0/v1.1/v1.2 existente hasta v1.3 (idempotente). */
+/** flask --app app upgrade-db : migra una BD v1.0/v1.1/v1.2/v1.3 existente hasta v1.4 (idempotente). */
 function cliUpgradeDb(db) {
   aplicarMigracion(db, MIGRATION_V11, 'v1.1');
   aplicarMigracion(db, MIGRATION_V12, 'v1.2');
   aplicarMigracion(db, MIGRATION_V13, 'v1.3');
+  aplicarMigracion(db, MIGRATION_V14, 'v1.4');
   db.prepare(
     'INSERT OR IGNORE INTO config(id_config,limite_horas_dia,umbral_desajuste_meta) VALUES(1,24.0,2.0)'
   ).run();
@@ -354,7 +366,7 @@ function cliUpgradeDb(db) {
     });
     tx();
   }
-  console.log('OK Migración v1.3 completada.');
+  console.log('OK Migración v1.4 completada.');
 }
 
 module.exports = {
@@ -363,6 +375,7 @@ module.exports = {
   MIGRATION_V11,
   MIGRATION_V12,
   MIGRATION_V13,
+  MIGRATION_V14,
   getDb,
   closeDb,
   seedRangos,

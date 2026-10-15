@@ -158,7 +158,7 @@ function chkDesajusteMeta(db, idPersona, idEmpresa) {
 function listarDesajustesMeta(db) {
   const avisos = [];
   const personas = db
-    .prepare("SELECT id_persona, id_empresa FROM persona WHERE id_empresa IS NOT NULL AND estado='activa'")
+    .prepare("SELECT id_persona, id_empresa FROM persona WHERE id_empresa IS NOT NULL AND estado='activa' AND deleted_at IS NULL")
     .all();
   for (const p of personas) {
     const w = chkDesajusteMeta(db, p.id_persona, p.id_empresa);
