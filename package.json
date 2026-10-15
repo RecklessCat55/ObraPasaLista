@@ -1,6 +1,6 @@
 {
   "name": "obrapasalista",
-  "version": "1.2.0",
+  "version": "1.4.0",
   "description": "ObraPasaLista - Control de presencia en obra (puerto a Node.js/Express de la version Python/Flask)",
   "main": "src/app.js",
   "scripts": {
