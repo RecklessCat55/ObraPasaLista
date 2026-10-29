@@ -16,7 +16,13 @@ router.get('/archivo/:id_archivo/descargar', (req, res) => {
   const idArchivo = parseInt(req.params.id_archivo, 10);
   const a = conn.prepare('SELECT * FROM archivo_obra WHERE id_archivo=?').get(idArchivo);
   if (!a) return res.status(404).send('Archivo no encontrado.');
-  const rutaAbs = path.join(config.DOCS_DIR, a.ruta_relativa);
+
+  const baseDocsDir = path.resolve(config.DOCS_DIR);
+  const rutaAbs = path.resolve(config.DOCS_DIR, a.ruta_relativa);
+  if (!rutaAbs.startsWith(baseDocsDir + path.sep) && rutaAbs !== baseDocsDir) {
+    return res.status(400).send('Ruta de archivo no válida o fuera del directorio permitido.');
+  }
+
   if (!fs.existsSync(rutaAbs) || !fs.statSync(rutaAbs).isFile()) {
     req.flash('El archivo ya no existe en disco.', 'error');
     const c = conn.prepare('SELECT id_obra FROM carpeta_obra WHERE id_carpeta=?').get(a.id_carpeta);

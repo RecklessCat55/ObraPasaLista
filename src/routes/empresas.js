@@ -31,14 +31,32 @@ router.get('/nueva', (req, res) => {
 router.post('/nueva', (req, res) => {
   const conn = db.getDb();
   const nom = (req.body.nombre || '').trim();
+  const metaRaw = (req.body.meta_horas_dia || '').trim();
+  let meta = null;
+  if (metaRaw) {
+    const val = parseFloat(metaRaw);
+    if (isNaN(val) || val <= 0) {
+      req.flash('Meta diaria inválida (debe ser un número mayor que 0).', 'error');
+      return renderPage(req, res, 'empresas/form', { title: 'Nueva empresa', active: 'mas', emp: null });
+    }
+    meta = val;
+  }
   if (!nom) {
     req.flash('Nombre obligatorio.', 'error');
     return res.redirect('/empresas/nueva');
   }
   try {
-    conn.prepare('INSERT INTO empresa(nombre) VALUES(?)').run(nom);
-    req.flash(`Empresa "${nom}" creada.`, 'success');
-    return res.redirect('/empresas/');
+    const borrada = conn.prepare('SELECT id_empresa FROM empresa WHERE nombre=? AND deleted_at IS NOT NULL').get(nom);
+    if (borrada) {
+      conn.prepare("UPDATE empresa SET estado='activa', meta_horas_dia=?, deleted_at=NULL WHERE id_empresa=?")
+        .run(meta, borrada.id_empresa);
+      req.flash(`Empresa "${nom}" reactivada (ficha previa recuperada).`, 'success');
+      return res.redirect('/empresas/');
+    } else {
+      conn.prepare('INSERT INTO empresa(nombre, meta_horas_dia) VALUES(?,?)').run(nom, meta);
+      req.flash(`Empresa "${nom}" creada.`, 'success');
+      return res.redirect('/empresas/');
+    }
   } catch (e) {
     req.flash(`Error: ${e.message}`, 'error');
     return renderPage(req, res, 'empresas/form', { title: 'Nueva empresa', active: 'mas', emp: null });

@@ -28,13 +28,24 @@ const { norm } = require('./fechas');
  */
 async function crearBackup(db, contexto = 'AUTO') {
   fs.mkdirSync(config.BACKUP_DIR, { recursive: true });
+  try {
+    db.pragma('wal_checkpoint(TRUNCATE)');
+  } catch (_) {}
+
   const now = new Date();
   const pad = (n) => String(n).padStart(2, '0');
   const stamp =
     `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_` +
     `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-  const nombre = `backup_${stamp}_${norm(contexto) || 'AUTO'}.db`;
-  const ruta = path.join(config.BACKUP_DIR, nombre);
+  const baseCtx = norm(contexto) || 'AUTO';
+  let nombre = `backup_${stamp}_${baseCtx}.db`;
+  let ruta = path.join(config.BACKUP_DIR, nombre);
+  let counter = 1;
+  while (fs.existsSync(ruta)) {
+    nombre = `backup_${stamp}_${baseCtx}_${counter}.db`;
+    ruta = path.join(config.BACKUP_DIR, nombre);
+    counter++;
+  }
   await db.backup(ruta);
   return ruta;
 }

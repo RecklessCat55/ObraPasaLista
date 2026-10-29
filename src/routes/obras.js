@@ -32,18 +32,38 @@ router.post('/nueva', (req, res) => {
   const conn = db.getDb();
   const cod = (req.body.codigo || '').trim();
   const nom = (req.body.nombre || '').trim();
+  const metaRaw = (req.body.meta_horas_dia || '').trim();
+  let meta = null;
+  if (metaRaw) {
+    const val = parseFloat(metaRaw);
+    if (isNaN(val) || val <= 0) {
+      req.flash('Meta diaria inválida (debe ser un número mayor que 0).', 'error');
+      const { oes, disp, parts } = loadObraFormExtras(conn, 0);
+      return renderPage(req, res, 'obras/form', { title: 'Nueva obra', active: 'mas', ob: null, oes: [], emps_disp: disp, parts: [] });
+    }
+    meta = val;
+  }
   if (!cod || !nom) {
     req.flash('Código y nombre obligatorios.', 'error');
   } else {
     try {
-      conn.prepare('INSERT INTO obra(codigo,nombre) VALUES(?,?)').run(cod, nom);
-      req.flash(`Obra "${nom}" creada.`, 'success');
-      return res.redirect('/obras/');
+      const borrada = conn.prepare('SELECT id_obra FROM obra WHERE codigo=? AND deleted_at IS NOT NULL').get(cod);
+      if (borrada) {
+        conn.prepare("UPDATE obra SET nombre=?, meta_horas_dia=?, estado='activa', deleted_at=NULL WHERE id_obra=?")
+          .run(nom, meta, borrada.id_obra);
+        req.flash(`Obra "${nom}" reactivada (ficha previa recuperada).`, 'success');
+        return res.redirect('/obras/');
+      } else {
+        conn.prepare('INSERT INTO obra(codigo,nombre,meta_horas_dia) VALUES(?,?,?)').run(cod, nom, meta);
+        req.flash(`Obra "${nom}" creada.`, 'success');
+        return res.redirect('/obras/');
+      }
     } catch (e) {
       req.flash(`Error: ${e.message}`, 'error');
     }
   }
-  renderPage(req, res, 'obras/form', { title: 'Nueva obra', active: 'mas', ob: null, oes: [], emps_disp: [], parts: [] });
+  const { oes, disp, parts } = loadObraFormExtras(conn, 0);
+  renderPage(req, res, 'obras/form', { title: 'Nueva obra', active: 'mas', ob: null, oes: [], emps_disp: disp, parts: [] });
 });
 
 function loadObraFormExtras(conn, id) {
@@ -129,7 +149,23 @@ router.post('/:id_obra/add-empresa', (req, res) => {
 router.post('/:id_obra/rem-empresa/:id_oe', (req, res) => {
   const conn = db.getDb();
   const idObra = parseInt(req.params.id_obra, 10);
-  conn.prepare('DELETE FROM obra_empresa WHERE id_oe=?').run(parseInt(req.params.id_oe, 10));
+  const idOe = parseInt(req.params.id_oe, 10);
+  const oe = conn.prepare('SELECT * FROM obra_empresa WHERE id_oe=?').get(idOe);
+  if (!oe || oe.id_obra !== idObra) {
+    req.flash('Asignación de empresa no encontrada en esta obra.', 'error');
+    return res.redirect(`/obras/${idObra}/editar`);
+  }
+  const tieneHoras = conn
+    .prepare(
+      `SELECT 1 FROM diario_linea dl JOIN diario d ON dl.id_diario=d.id_diario
+       WHERE d.id_obra=? AND dl.id_empresa=? LIMIT 1`
+    )
+    .get(idObra, oe.id_empresa);
+  if (tieneHoras) {
+    req.flash('No se puede desasignar la empresa porque ya tiene partes u horas registradas en esta obra.', 'error');
+    return res.redirect(`/obras/${idObra}/editar`);
+  }
+  conn.prepare('DELETE FROM obra_empresa WHERE id_oe=?').run(idOe);
   req.flash('Empresa eliminada de la obra.', 'success');
   res.redirect(`/obras/${idObra}/editar`);
 });
@@ -189,6 +225,12 @@ router.post('/:id/eliminar', (req, res) => {
   const ob = conn.prepare('SELECT nombre FROM obra WHERE id_obra=?').get(id);
   if (!ob) {
     req.flash('Obra no encontrada.', 'error');
+    return res.redirect('/obras/');
+  }
+  const abiertos = mensualesAbiertos(conn, id);
+  if (abiertos.length) {
+    const lista = abiertos.map((m) => `${m.mes} (${m.nom_e})`).join(', ');
+    req.flash(`No se puede eliminar la obra: hay mensuales abiertos (${lista}). Ciérralos primero.`, 'error');
     return res.redirect('/obras/');
   }
   const now = new Date().toISOString();

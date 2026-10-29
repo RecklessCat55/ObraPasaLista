@@ -15,7 +15,7 @@ const {
 } = require('../services/cae');
 
 // Resumen global de caducidades CAE
-router.get('/alertas', (req, res) => {
+router.get(['/', '/alertas'], (req, res) => {
   const conn = db.getDb();
   const hoy = hoyIso();
 

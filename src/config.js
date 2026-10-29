@@ -29,9 +29,39 @@ fs.mkdirSync(BACKUP_DIR, { recursive: true });
 const DOCS_DIR = process.env.OBRAPL_DOCS_DIR || path.join(APP_DATA_DIR, 'docs');
 fs.mkdirSync(DOCS_DIR, { recursive: true });
 
-const SECRET_KEY = process.env.SECRET_KEY || crypto.randomBytes(16).toString('hex');
+function getSecretKey() {
+  if (process.env.SECRET_KEY) return process.env.SECRET_KEY;
+  const keyPath = path.join(APP_DATA_DIR, 'secret.key');
+  try {
+    if (fs.existsSync(keyPath)) {
+      const key = fs.readFileSync(keyPath, 'utf8').trim();
+      if (key) return key;
+    }
+    const newKey = crypto.randomBytes(32).toString('hex');
+    fs.writeFileSync(keyPath, newKey, { mode: 0o600, encoding: 'utf8' });
+    return newKey;
+  } catch (e) {
+    return crypto.randomBytes(32).toString('hex');
+  }
+}
+
+const SECRET_KEY = getSecretKey();
 
 const PORT = parseInt(process.env.PORT || '5000', 10);
+
+/**
+ * Mueve un fichero de BD y sus posibles acompañantes WAL/SHM
+ */
+function moverFicheroBdConWal(origen, destino) {
+  if (fs.existsSync(origen) && !fs.existsSync(destino)) {
+    try { fs.renameSync(origen, destino); } catch (e) {}
+  }
+  for (const ext of ['-wal', '-shm']) {
+    if (fs.existsSync(origen + ext) && !fs.existsSync(destino + ext)) {
+      try { fs.renameSync(origen + ext, destino + ext); } catch (e) {}
+    }
+  }
+}
 
 /**
  * Compatibilidad con instalaciones v1.1 y el puerto inicial Node.js:
@@ -42,9 +72,7 @@ function migrarUbicacionBdLegacy() {
   
   // 1. Migración de la BD Python original (BASE_DIR/app.db)
   const legacyPythonDb = path.join(BASE_DIR, 'app.db');
-  if (fs.existsSync(legacyPythonDb) && !fs.existsSync(DB_PATH)) {
-    try { fs.renameSync(legacyPythonDb, DB_PATH); } catch (e) {}
-  }
+  moverFicheroBdConWal(legacyPythonDb, DB_PATH);
   const legacyPythonBk = path.join(BASE_DIR, 'backups');
   if (fs.existsSync(legacyPythonBk) && fs.statSync(legacyPythonBk).isDirectory()) {
     try { fs.cpSync(legacyPythonBk, BACKUP_DIR, { recursive: true, force: false }); } catch (e) {}
@@ -52,9 +80,7 @@ function migrarUbicacionBdLegacy() {
 
   // 2. Migración del antiguo puerto Node (BASE_DIR/data y BASE_DIR/docs)
   const legacyNodeDb = path.join(BASE_DIR, 'data', 'app.db');
-  if (fs.existsSync(legacyNodeDb) && !fs.existsSync(DB_PATH)) {
-    try { fs.renameSync(legacyNodeDb, DB_PATH); } catch (e) {}
-  }
+  moverFicheroBdConWal(legacyNodeDb, DB_PATH);
   const legacyNodeBk = path.join(BASE_DIR, 'data', 'backups');
   if (fs.existsSync(legacyNodeBk) && fs.statSync(legacyNodeBk).isDirectory()) {
     try { fs.cpSync(legacyNodeBk, BACKUP_DIR, { recursive: true, force: false }); } catch (e) {}

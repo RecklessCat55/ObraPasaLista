@@ -22,16 +22,24 @@ const { flashMiddleware } = require('./middleware/flash');
 const app = express();
 const conn = db.getDb();
 
+app.disable('x-powered-by');
+
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+app.use(express.json({ limit: '1mb' }));
 app.use(
   session({
+    name: 'opl.sid',
     secret: config.SECRET_KEY,
     resave: false,
-    saveUninitialized: true,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      sameSite: 'lax',
+      maxAge: 12 * 3600 * 1000,
+    },
   })
 );
 app.use(flashMiddleware);
@@ -61,14 +69,14 @@ app.use('/informes', require('./routes/informes'));
 app.use('/faq', require('./routes/faq'));
 
 // -- MANEJO DE ERRORES --
-// Equivalente al patrón `try/except ValueError as e: flash(str(e),'error')` que
-// se repite en (casi) cada ruta POST de la version Python. Aquí cada ruta que
-// puede lanzar una validación de negocio usa `next(e)` y este middleware final
-// hace el flash + redirect genérico si la propia ruta no lo gestionó ya.
 app.use((err, req, res, next) => {
-  console.error(err);
-  req.flash(err.message || 'Error inesperado.', 'error');
-  const back = req.get('referer') || '/';
+  console.error('[Error]', req.method, req.originalUrl, err);
+  const msg = err && err.name === 'ValidationError'
+    ? err.message
+    : 'Se ha producido un error. Revisa el registro local.';
+  req.flash(msg, 'error');
+  const ref = req.get('referer');
+  const back = ref && ref.startsWith('/') && !ref.startsWith('//') ? ref : '/';
   res.redirect(back);
 });
 
@@ -76,11 +84,20 @@ app.use((req, res) => {
   res.status(404).send('Página no encontrada.');
 });
 
-app.listen(config.PORT, '127.0.0.1', () => {
-  console.log(`ObraPasaLista escuchando en http://127.0.0.1:${config.PORT}`);
-});
-
-process.on('SIGINT', () => {
-  conn.close();
+function gracefulShutdown() {
+  try {
+    conn.close();
+  } catch (_) {}
   process.exit(0);
-});
+}
+
+process.on('SIGINT', gracefulShutdown);
+process.on('SIGTERM', gracefulShutdown);
+
+if (require.main === module) {
+  app.listen(config.PORT, '127.0.0.1', () => {
+    console.log(`ObraPasaLista escuchando en http://127.0.0.1:${config.PORT}`);
+  });
+}
+
+module.exports = app;

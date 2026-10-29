@@ -79,20 +79,39 @@ router.post('/nueva', (req, res) => {
       const meta = metaRaw ? parseFloat(metaRaw) : null;
       const precio = precioRaw ? parseFloat(precioRaw) : null;
       let newId;
-      const tx = conn.transaction(() => {
-        const cur = conn
-          .prepare(
-            `INSERT INTO persona(nombre,apellido1,apellido2,dni,id_empresa,oficio,meta_horas_dia,precio_hora_override)
-             VALUES(?,?,?,?,?,?,?,?)`
-          )
-          .run(nom, ap1, ap2, dni, ide, ofi, meta, precio);
-        newId = cur.lastInsertRowid;
-        conn
-          .prepare('INSERT INTO persona_rango(id_persona,id_rango,fecha_inicio) VALUES(?,?,?)')
-          .run(newId, idr, fsDate(new Date()));
-      });
-      tx();
-      req.flash(`${ap1}, ${nom} creado.`, 'success');
+      const borrada = conn.prepare('SELECT id_persona FROM persona WHERE dni=? AND deleted_at IS NOT NULL').get(dni);
+      if (borrada) {
+        newId = borrada.id_persona;
+        const tx = conn.transaction(() => {
+          conn
+            .prepare(
+              `UPDATE persona SET nombre=?, apellido1=?, apellido2=?, id_empresa=?, oficio=?,
+                                  meta_horas_dia=?, precio_hora_override=?, estado='activa', deleted_at=NULL
+               WHERE id_persona=?`
+            )
+            .run(nom, ap1, ap2, ide, ofi, meta, precio, newId);
+          conn
+            .prepare('INSERT INTO persona_rango(id_persona,id_rango,fecha_inicio) VALUES(?,?,?)')
+            .run(newId, idr, fsDate(new Date()));
+        });
+        tx();
+        req.flash(`${ap1}, ${nom} reactivado (ficha previa recuperada).`, 'success');
+      } else {
+        const tx = conn.transaction(() => {
+          const cur = conn
+            .prepare(
+              `INSERT INTO persona(nombre,apellido1,apellido2,dni,id_empresa,oficio,meta_horas_dia,precio_hora_override)
+               VALUES(?,?,?,?,?,?,?,?)`
+            )
+            .run(nom, ap1, ap2, dni, ide, ofi, meta, precio);
+          newId = cur.lastInsertRowid;
+          conn
+            .prepare('INSERT INTO persona_rango(id_persona,id_rango,fecha_inicio) VALUES(?,?,?)')
+            .run(newId, idr, fsDate(new Date()));
+        });
+        tx();
+        req.flash(`${ap1}, ${nom} creado.`, 'success');
+      }
       if (ide) {
         const w = chkDesajusteMeta(conn, newId, parseInt(ide, 10));
         if (w) req.flash(w, 'warning');
@@ -262,18 +281,31 @@ router.post('/:id/anonimizar', (req, res) => {
     return res.redirect('/personas/');
   }
   const anonTag = `ANON_${id}`;
-  conn
-    .prepare(
-      `UPDATE persona
-         SET nombre    = ?,
-             apellido1 = ?,
-             apellido2 = '',
-             dni       = ?,
-             oficio    = '',
-             estado    = 'inactiva'
-       WHERE id_persona=?`
-    )
-    .run(anonTag, 'ANONIMIZADO', anonTag, id);
+  const tx = conn.transaction(() => {
+    conn
+      .prepare(
+        `UPDATE persona
+           SET nombre    = ?,
+               apellido1 = ?,
+               apellido2 = '',
+               dni       = ?,
+               oficio    = '',
+               estado    = 'inactiva'
+         WHERE id_persona=?`
+      )
+      .run(anonTag, 'ANONIMIZADO', anonTag, id);
+    conn
+      .prepare(
+        `UPDATE mensual_persona
+           SET nom_c = 'ANON',
+               ap1_c = 'ANON',
+               ap2_c = '',
+               dni_c = 'ANON'
+         WHERE id_persona=?`
+      )
+      .run(id);
+  });
+  tx();
   req.flash(
     `Persona #${id} anonimizada. Se mantiene el histórico de horas, ` +
       'pero ya no es identificable y no se puede usar en nuevos partes.',

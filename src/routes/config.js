@@ -131,6 +131,12 @@ router.post('/festivos/nuevo', (req, res) => {
     req.flash('Fecha inválida. Usa el formato YYYY-MM-DD.', 'error');
     return res.redirect('/config/festivos');
   }
+  const [y, m, d] = fecha.split('-').map((v) => parseInt(v, 10));
+  const dt = new Date(y, m - 1, d);
+  if (dt.getFullYear() !== y || dt.getMonth() + 1 !== m || dt.getDate() !== d) {
+    req.flash('Fecha calendario no válida (día o mes inexistente).', 'error');
+    return res.redirect('/config/festivos');
+  }
   try {
     conn.prepare('INSERT INTO config_festivo(fecha,descripcion) VALUES(?,?)').run(fecha, desc);
     req.flash(`Festivo ${fecha} añadido.`, 'success');

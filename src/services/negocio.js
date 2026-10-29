@@ -193,14 +193,11 @@ function precioEfectivoPersona(db, idPersona, fecha = null) {
  * vigentes en el momento de generar el informe.
  */
 function informeCostes(db, idObra, mesStr) {
+  if (!mesStr || !/^\d{4}-(0[1-9]|1[0-2])$/.test(mesStr)) {
+    throw new ValidationError('Mes inválido. Formato esperado: YYYY-MM');
+  }
   const [year, month] = [parseInt(mesStr.slice(0, 4), 10), parseInt(mesStr.slice(5, 7), 10)];
   const days = new Date(year, month, 0).getDate();
-  const cerrados = new Set(
-    db
-      .prepare("SELECT id_empresa FROM mensual WHERE id_obra=? AND mes=? AND estado='cerrado'")
-      .all(idObra, mesStr)
-      .map((r) => r.id_empresa)
-  );
 
   const filas = [];
   const horasDia = new Array(days + 1).fill(0.0);
@@ -235,19 +232,23 @@ function informeCostes(db, idObra, mesStr) {
   }
 
   // -- empresas con mensual abierto (o sin mensual): directamente del diario --
-  let q = `SELECT dl.id_persona, dl.id_empresa, p.nombre nom, p.apellido1 ap1, p.apellido2 ap2, e.nombre emp,
-                  CAST(strftime('%d', d.fecha) AS INTEGER) ndia, COALESCE(SUM(dl.horas), 0) horas
-           FROM diario_linea dl
-           JOIN diario  d ON dl.id_diario=d.id_diario
-           JOIN persona p ON dl.id_persona=p.id_persona
-           JOIN empresa e ON dl.id_empresa=e.id_empresa
-           WHERE d.id_obra=? AND strftime('%Y-%m', d.fecha)=?`;
-  const params = [idObra, mesStr];
-  if (cerrados.size) {
-    q += ` AND dl.id_empresa NOT IN (${[...cerrados].map(() => '?').join(',')})`;
-    params.push(...cerrados);
-  }
-  q += ' GROUP BY dl.id_persona, dl.id_empresa, ndia';
+  // Excluimos por pareja (id_persona, id_empresa) ya congelada en cualquier snapshot cerrado de esa obra/mes
+  // para evitar duplicar horas de trabajadores de subcontratas congelados en el mensual principal.
+  const q = `SELECT dl.id_persona, dl.id_empresa, p.nombre nom, p.apellido1 ap1, p.apellido2 ap2, e.nombre emp,
+                    CAST(strftime('%d', d.fecha) AS INTEGER) ndia, COALESCE(SUM(dl.horas), 0) horas
+             FROM diario_linea dl
+             JOIN diario  d ON dl.id_diario=d.id_diario
+             JOIN persona p ON dl.id_persona=p.id_persona
+             JOIN empresa e ON dl.id_empresa=e.id_empresa
+             WHERE d.id_obra=? AND strftime('%Y-%m', d.fecha)=?
+               AND NOT EXISTS (
+                 SELECT 1 FROM mensual_persona mp
+                 JOIN mensual m2 ON mp.id_mensual = m2.id_mensual
+                 WHERE m2.id_obra = ? AND m2.mes = ? AND m2.estado = 'cerrado'
+                   AND mp.id_persona = dl.id_persona AND mp.id_empresa = dl.id_empresa
+               )
+             GROUP BY dl.id_persona, dl.id_empresa, ndia`;
+  const params = [idObra, mesStr, idObra, mesStr];
 
   const agg = new Map();
   for (const r of db.prepare(q).all(...params)) {

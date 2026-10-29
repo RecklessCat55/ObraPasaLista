@@ -28,9 +28,9 @@ const TIPOS_DOC_EMPRESA = {
  * Añade días a una fecha ISO (YYYY-MM-DD).
  */
 function sumarDias(fechaStr, dias) {
-  const d = new Date(fechaStr);
-  d.setDate(d.getDate() + dias);
-  return d.toISOString().slice(0, 10);
+  const [y, m, d] = fechaStr.split('-').map((v) => parseInt(v, 10));
+  const dt = new Date(Date.UTC(y, m - 1, d + dias));
+  return dt.toISOString().slice(0, 10);
 }
 
 /**

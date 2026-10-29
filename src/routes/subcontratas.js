@@ -46,8 +46,12 @@ router.post('/nueva', (req, res) => {
 
 router.post('/:id/eliminar', (req, res) => {
   const conn = db.getDb();
-  conn.prepare('DELETE FROM empresa_relacion WHERE id_rel=?').run(parseInt(req.params.id, 10));
-  req.flash('Relación eliminada.', 'success');
+  const info = conn.prepare('DELETE FROM empresa_relacion WHERE id_rel=?').run(parseInt(req.params.id, 10));
+  if (info.changes === 0) {
+    req.flash('Relación no encontrada o ya eliminada.', 'warning');
+  } else {
+    req.flash('Relación eliminada.', 'success');
+  }
   res.redirect('/subcontratas/');
 });
 

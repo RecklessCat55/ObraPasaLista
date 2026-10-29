@@ -1,11 +1,4 @@
 'use strict';
-// Express 5 ya no admite regex en los parámetros (':id(\\d+)').
-// Se valida en un middleware y, si no cumple, se pasa a la siguiente ruta.
-const paramMatch = (name, re) => (req, res, next) =>
-  re.test(req.params[name]) ? next() : next('route');
-const ENTERO = /^\d+$/;
-const FECHA_RAW = /^[0-9-]+$/;
-
 /**
  * routes/diario.js — parte diario de obra: selector, vista/edición de
  * líneas, meteorología, arrastre del día anterior y asignación masiva.
@@ -15,7 +8,7 @@ const router = express.Router();
 const db = require('../db');
 const { renderPage } = require('../middleware/render');
 const { fs: fsDate, nf, hhmm } = require('../services/fechas');
-const { chkHoras, chkMesCerrado, getRangoActivo } = require('../services/horas');
+const { chkHoras, chkMesCerrado, chkMesCerradoObra, getRangoActivo } = require('../services/horas');
 const { nombrePersona, getMetaEfectiva, chkObraActiva } = require('../services/negocio');
 const { buscarDiarioParaArrastre } = require('../services/carryover');
 const { obtenerSemaforoDiario, evaluarDocPersona } = require('../services/cae');
@@ -55,7 +48,7 @@ function loadPersXEmp(conn, empsObra) {
   return persXEmp;
 }
 
-router.get('/:id_m', (req, res, next) => (/^\d+$/.test(req.params.id_m) ? next() : next('route')), (req, res) => {
+router.get('/:id_obra(\\d+)/:fecha_raw([0-9-]+)', (req, res) => {
   const conn = db.getDb();
   const idObra = parseInt(req.params.id_obra, 10);
   let fecha;
@@ -136,7 +129,7 @@ router.get('/:id_m', (req, res, next) => (/^\d+$/.test(req.params.id_m) ? next()
 });
 
 // VISTA MÓVIL TÁCTIL PARA ENCARGADOS (PASALISTA TOUCH)
-router.get('/:id_d/movil', paramMatch('id_d', ENTERO), (req, res) => {
+router.get('/:id_d(\\d+)/movil', (req, res) => {
   const conn = db.getDb();
   const idD = parseInt(req.params.id_d, 10);
   const d = conn.prepare('SELECT * FROM diario WHERE id_diario=?').get(idD);
@@ -229,6 +222,7 @@ router.post('/linea/api/guardar-horas', express.json(), (req, res) => {
       const dl = conn.prepare('SELECT * FROM diario_linea WHERE id_dl=?').get(id_dl);
       if (!dl) return res.status(404).json({ error: 'Línea no encontrada.' });
       const d = conn.prepare('SELECT * FROM diario WHERE id_diario=?').get(dl.id_diario);
+      chkObraActiva(conn, d.id_obra);
       chkMesCerrado(d.id_obra, dl.id_empresa, d.fecha, conn);
       chkHoras(dl.id_persona, d.fecha, horas, conn, id_dl);
 
@@ -243,6 +237,18 @@ router.post('/linea/api/guardar-horas', express.json(), (req, res) => {
       if (!d) return res.status(404).json({ error: 'Diario no encontrado.' });
       chkObraActiva(conn, d.id_obra);
       chkMesCerrado(d.id_obra, id_empresa, d.fecha, conn);
+
+      // Comprobar idempotencia: si ya existe una línea para esta persona y empresa en el diario, actualizar
+      const existing = conn
+        .prepare('SELECT id_dl FROM diario_linea WHERE id_diario=? AND id_persona=? AND id_empresa=?')
+        .get(id_diario, id_persona, id_empresa);
+      if (existing) {
+        chkHoras(id_persona, d.fecha, horas, conn, existing.id_dl);
+        conn.prepare('UPDATE diario_linea SET horas=? WHERE id_dl=?').run(horas, existing.id_dl);
+        const total = conn.prepare('SELECT COALESCE(SUM(horas),0) t FROM diario_linea WHERE id_diario=?').get(id_diario).t;
+        return res.json({ success: true, id_dl: existing.id_dl, horas, total: hhmm(total), totalRaw: total });
+      }
+
       chkHoras(id_persona, d.fecha, horas, conn);
 
       const idR = getRangoActivo(id_persona, d.fecha, conn);
@@ -277,6 +283,15 @@ router.post('/:id_d/linea/nueva', (req, res) => {
     const asunto = (req.body.asunto || '').trim();
     const idR = req.body.id_rango || getRangoActivo(idPer, d.fecha, conn);
     const idPa = req.body.id_partida || null;
+
+    // Rechazar líneas duplicadas para la misma persona y empresa en el mismo parte
+    const dup = conn
+      .prepare('SELECT 1 FROM diario_linea WHERE id_diario=? AND id_persona=? AND id_empresa=?')
+      .get(idD, idPer, idEmp);
+    if (dup) {
+      throw new ValidationError('Esa persona ya tiene una línea en este parte para esta empresa.');
+    }
+
     chkMesCerrado(d.id_obra, idEmp, d.fecha, conn);
     chkHoras(idPer, d.fecha, horas, conn);
     conn
@@ -308,8 +323,8 @@ router.post('/linea/:id_dl/editar', (req, res) => {
       chkObraActiva(conn, dl.id_obra);
       const h = req.body.horas !== undefined && req.body.horas !== '' ? parseFloat(req.body.horas) : dl.horas;
       const as_ = (req.body.asunto !== undefined ? req.body.asunto : dl.asunto || '').trim();
-      const ir = req.body.id_rango || dl.id_rango;
-      const ip = req.body.id_partida || dl.id_partida;
+      const ir = req.body.id_rango !== undefined ? (req.body.id_rango ? parseInt(req.body.id_rango, 10) : null) : dl.id_rango;
+      const ip = req.body.id_partida !== undefined ? (req.body.id_partida ? parseInt(req.body.id_partida, 10) : null) : dl.id_partida;
       chkMesCerrado(dl.id_obra, dl.id_empresa, dl.fecha, conn);
       chkHoras(dl.id_persona, dl.fecha, h, conn, idDl);
       conn
@@ -362,6 +377,7 @@ router.post('/:id_d/meteo', (req, res) => {
   }
   try {
     chkObraActiva(conn, d.id_obra);
+    chkMesCerradoObra(conn, d.id_obra, d.fecha);
     const t = (req.body.meteo_temp_c || '').trim();
     const tVal = t ? parseFloat(t) : null;
     if (t && Number.isNaN(tVal)) throw new Error('Temperatura inválida.');

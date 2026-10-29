@@ -27,8 +27,10 @@ class ValidationError extends Error {
  */
 function secureFilename(filename) {
   if (!filename) return '';
-  // Solo el nombre, sin ruta (por si el navegador manda una ruta completa)
-  let name = filename.replace(/^.*[\\/]/, '');
+  // Quitar secuencias relativas iniciales (ej. ../../)
+  let name = filename.replace(/^(\.\.[/\\])+/, '');
+  // Reemplazar barras por guión bajo
+  name = name.replace(/[\\/]+/g, '_');
   name = name.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
   name = name.replace(/[^A-Za-z0-9._-]+/g, '_');
   name = name.replace(/^[._-]+|[._-]+$/g, '');

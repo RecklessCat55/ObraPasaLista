@@ -26,6 +26,14 @@ function getLim(db) {
  * `excl` permite excluir una línea concreta (id_dl) al editar.
  */
 function chkHoras(idPersona, fecha, hNew, db, excl = null) {
+  // Normalizar si se pasa db como primer argumento (conn, idPersona, fecha, ...)
+  if (idPersona && typeof idPersona.prepare === 'function') {
+    const actualDb = idPersona;
+    idPersona = fecha;
+    fecha = hNew;
+    hNew = db;
+    db = actualDb;
+  }
   const lim = getLim(db);
   let q = `SELECT COALESCE(SUM(dl.horas),0) t FROM diario_linea dl
            JOIN diario d ON dl.id_diario=d.id_diario
@@ -49,6 +57,14 @@ function chkHoras(idPersona, fecha, hNew, db, excl = null) {
 
 /** Lanza Error si el mensual de esa obra/empresa/mes está cerrado. */
 function chkMesCerrado(idObra, idEmpresa, fecha, db) {
+  // Normalizar si se pasa db como primer argumento (conn, idObra, idEmpresa, fecha)
+  if (idObra && typeof idObra.prepare === 'function') {
+    const actualDb = idObra;
+    idObra = idEmpresa;
+    idEmpresa = fecha;
+    fecha = db;
+    db = actualDb;
+  }
   const m = db
     .prepare(
       `SELECT m.estado, o.nombre ob, e.nombre em FROM mensual m
@@ -61,8 +77,35 @@ function chkMesCerrado(idObra, idEmpresa, fecha, db) {
   }
 }
 
+/** Lanza Error si cualquier mensual de la obra para ese mes está cerrado. */
+function chkMesCerradoObra(idObra, fecha, db) {
+  if (idObra && typeof idObra.prepare === 'function') {
+    const actualDb = idObra;
+    idObra = fecha;
+    fecha = db;
+    db = actualDb;
+  }
+  const m = db
+    .prepare(
+      `SELECT m.estado, o.nombre ob, e.nombre em FROM mensual m
+       JOIN obra o ON m.id_obra=o.id_obra JOIN empresa e ON m.id_empresa=e.id_empresa
+       WHERE m.id_obra=? AND m.mes=? AND m.estado='cerrado' LIMIT 1`
+    )
+    .get(idObra, mes(fecha));
+  if (m) {
+    throw new ValidationError(`Mes ${mes(fecha)} para '${m.ob}' tiene partes cerrados (${m.em}).`);
+  }
+}
+
 /** Devuelve el id_rango activo de una persona en una fecha dada. */
 function getRangoActivo(idPersona, fecha, db) {
+  // Normalizar si se pasa db como primer argumento (conn, idPersona, fecha)
+  if (idPersona && typeof idPersona.prepare === 'function') {
+    const actualDb = idPersona;
+    idPersona = fecha;
+    fecha = db;
+    db = actualDb;
+  }
   const f = fs(fecha);
   const r = db
     .prepare(
@@ -76,4 +119,4 @@ function getRangoActivo(idPersona, fecha, db) {
   return se ? se.id_rango : null;
 }
 
-module.exports = { getLim, chkHoras, chkMesCerrado, getRangoActivo };
+module.exports = { getLim, chkHoras, chkMesCerrado, chkMesCerradoObra, getRangoActivo };

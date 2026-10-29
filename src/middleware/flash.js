@@ -17,9 +17,12 @@ function flashMiddleware(req, res, next) {
 
 /** Devuelve los mensajes acumulados y vacía la cola (se muestran una sola vez). */
 function popFlashed(req) {
-  const msgs = (req.session && req.session.flashMessages) || [];
-  if (req.session) req.session.flashMessages = [];
-  return msgs;
+  if (req.session && req.session.flashMessages && req.session.flashMessages.length > 0) {
+    const msgs = req.session.flashMessages;
+    delete req.session.flashMessages;
+    return msgs;
+  }
+  return [];
 }
 
 module.exports = { flashMiddleware, popFlashed };

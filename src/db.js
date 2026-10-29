@@ -319,9 +319,11 @@ function aplicarMigracion(db, statements, etiqueta) {
 function initIfNeeded(db) {
   db.exec(SCHEMA);
   // Si la BD viene de una versión anterior, aplicamos migraciones de forma idempotente.
+  aplicarMigracion(db, MIGRATION_V11, 'v1.1 (auto)');
   aplicarMigracion(db, MIGRATION_V12, 'v1.2 (auto)');
   aplicarMigracion(db, MIGRATION_V13, 'v1.3 (auto)');
   aplicarMigracion(db, MIGRATION_V14, 'v1.4 (auto)');
+  db.pragma('user_version = 14');
   const cfg = db.prepare('SELECT 1 FROM config WHERE id_config=1').get();
   if (!cfg) {
     db.prepare(
@@ -334,6 +336,7 @@ function initIfNeeded(db) {
 /** flask --app app init-db : instalación limpia, ya en v1.4. */
 function cliInitDb(db) {
   db.exec(SCHEMA);
+  db.pragma('user_version = 14');
   db.prepare(
     'INSERT OR IGNORE INTO config(id_config,limite_horas_dia,umbral_desajuste_meta) VALUES(1,24.0,2.0)'
   ).run();
@@ -347,6 +350,7 @@ function cliUpgradeDb(db) {
   aplicarMigracion(db, MIGRATION_V12, 'v1.2');
   aplicarMigracion(db, MIGRATION_V13, 'v1.3');
   aplicarMigracion(db, MIGRATION_V14, 'v1.4');
+  db.pragma('user_version = 14');
   db.prepare(
     'INSERT OR IGNORE INTO config(id_config,limite_horas_dia,umbral_desajuste_meta) VALUES(1,24.0,2.0)'
   ).run();

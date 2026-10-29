@@ -16,7 +16,33 @@ const { rutaCarpetaObra } = require('../services/docs');
 const { secureFilename, ValidationError } = require('../utils');
 const { chkObraActiva } = require('../services/negocio');
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 64 * 1024 * 1024 } });
+const EXTENSIONES_PERMITIDAS = new Set([
+  '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+  '.odt', '.ods', '.odp',
+  '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg',
+  '.dwg', '.dxf',
+  '.txt', '.csv', '.rtf',
+  '.zip', '.7z', '.rar', '.tar', '.gz'
+]);
+
+const EXTENSIONES_PROHIBIDAS = new Set([
+  '.exe', '.bat', '.cmd', '.sh', '.ps1', '.vbs', '.js', '.jar', '.msi', '.com', '.scr', '.pif'
+]);
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 64 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    if (EXTENSIONES_PROHIBIDAS.has(ext)) {
+      return cb(new ValidationError(`Tipo de archivo ejecutable no permitido: ${ext}`));
+    }
+    if (!EXTENSIONES_PERMITIDAS.has(ext)) {
+      return cb(new ValidationError(`Extensión de archivo no permitida (${ext}). Permitidas: PDF, Office, imágenes, CAD, texto y comprimidos.`));
+    }
+    cb(null, true);
+  }
+});
 
 // Fallback equivalente a mimetypes.guess_type() de Python cuando el navegador
 // no manda Content-Type para el archivo subido (poco común, pero posible).
@@ -132,10 +158,18 @@ router.post('/:id_obra/documentacion/carpeta/nueva', (req, res) => {
   res.redirect(`/obra/${idObra}/documentacion`);
 });
 
-router.post('/:id_obra/documentacion/carpeta/:id_carpeta/subir', upload.single('archivo'), (req, res) => {
-  const conn = db.getDb();
+router.post('/:id_obra/documentacion/carpeta/:id_carpeta/subir', (req, res) => {
   const idObra = parseInt(req.params.id_obra, 10);
   const idCarpeta = parseInt(req.params.id_carpeta, 10);
+  upload.single('archivo')(req, res, (err) => {
+    if (err) {
+      const msg = err.code === 'LIMIT_FILE_SIZE'
+        ? 'El archivo supera el límite máximo permitido de 64 MB.'
+        : (err.message || 'Error al procesar el archivo subido.');
+      req.flash(msg, 'error');
+      return res.redirect(`/obra/${idObra}/documentacion`);
+    }
+    const conn = db.getDb();
   try {
     chkObraActiva(conn, idObra);
     const carpeta = conn.prepare('SELECT * FROM carpeta_obra WHERE id_carpeta=? AND id_obra=?').get(idCarpeta, idObra);
@@ -184,6 +218,7 @@ router.post('/:id_obra/documentacion/carpeta/:id_carpeta/subir', upload.single('
     }
   }
   res.redirect(`/obra/${idObra}/documentacion`);
+  });
 });
 
 module.exports = router;

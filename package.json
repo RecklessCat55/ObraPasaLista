@@ -1,6 +1,6 @@
 {
   "name": "obrapasalista",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "ObraPasaLista - Control de presencia en obra (puerto a Node.js/Express de la version Python/Flask)",
   "main": "src/app.js",
   "scripts": {
@@ -9,16 +9,19 @@
     "init-db": "node src/cli.js init-db",
     "upgrade-db": "node src/cli.js upgrade-db",
     "backup": "node src/cli.js backup",
-    "test": "node tests/smoke_test.js"
+    "test": "node tests/smoke_test.js && node tests/http_test.js"
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "better-sqlite3": "^13.0.3",
-    "ejs": "^6.0.1",
-    "express": "^5.2.1",
-    "express-session": "^1.19.0",
-    "multer": "^2.4.0"
+    "better-sqlite3": "^11.10.0",
+    "ejs": "^3.1.10",
+    "express": "^4.21.2",
+    "express-session": "^1.18.1",
+    "multer": "^2.0.0"
+  },
+  "devDependencies": {
+    "supertest": "^7.0.0"
   }
 }

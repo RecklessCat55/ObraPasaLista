@@ -21,6 +21,10 @@ router.get('/costes', (req, res) => {
     )
     .all();
   const idObra = parseInt(req.query.id_obra, 10) || null;
+  if (req.query.mes && !/^\d{4}-(0[1-9]|1[0-2])$/.test(req.query.mes.trim())) {
+    req.flash('Formato de mes inválido. Utilice el formato AAAA-MM (ej. 2026-09).', 'error');
+    return res.redirect('/informes/costes');
+  }
   const mesStr = (req.query.mes || '').trim() || fsDate(new Date()).slice(0, 7);
   let filas = null;
   let diasTabla = null;
@@ -54,6 +58,10 @@ router.get('/costes', (req, res) => {
 
 router.get('/costes/excel', (req, res) => {
   const conn = db.getDb();
+  if (req.query.mes && !/^\d{4}-(0[1-9]|1[0-2])$/.test(req.query.mes.trim())) {
+    req.flash('Formato de mes inválido. Utilice el formato AAAA-MM (ej. 2026-09).', 'error');
+    return res.redirect('/informes/costes');
+  }
   const idObra = parseInt(req.query.id_obra, 10) || null;
   const mesStr = (req.query.mes || '').trim() || fsDate(new Date()).slice(0, 7);
 

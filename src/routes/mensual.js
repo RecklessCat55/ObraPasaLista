@@ -3,9 +3,12 @@
  * routes/mensual.js — cierre mensual: creación/apertura, vista (con snapshot
  * o cálculo en vivo), cierre, reapertura y exportación CSV.
  */
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const config = require('../config');
 const { renderPage } = require('../middleware/render');
 const { fs: fsDate, hhmm, norm } = require('../services/fechas');
 const { calcularFilasMensual, chkObraActiva } = require('../services/negocio');
@@ -35,6 +38,10 @@ router.post('/nuevo', (req, res) => {
   const m = (req.body.mes || '').trim();
   if (!io || !ie || !m) {
     req.flash('Todos los campos son obligatorios.', 'error');
+    return res.redirect('/mensual/');
+  }
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(m)) {
+    req.flash('Formato de mes inválido. Utilice el formato AAAA-MM (ej. 2026-09).', 'error');
     return res.redirect('/mensual/');
   }
   try {
@@ -108,6 +115,12 @@ router.post('/:id_m/cerrar', (req, res) => {
     req.flash('No encontrado.', 'error');
     return res.redirect('/mensual/');
   }
+  try {
+    chkObraActiva(conn, m.id_obra);
+  } catch (e) {
+    req.flash(e.message, 'error');
+    return res.redirect(`/mensual/${idM}`);
+  }
   if (m.estado === 'cerrado') {
     req.flash('Este mes ya está cerrado.', 'warning');
     return res.redirect(`/mensual/${idM}`);
@@ -177,6 +190,20 @@ router.post('/:id_m/reabrir', (req, res) => {
     req.flash(e.message, 'error');
     return res.redirect(`/mensual/${idM}`);
   }
+
+  // Respaldo de seguridad del snapshot en JSON antes de eliminarlo
+  const snapshotRows = conn.prepare('SELECT * FROM mensual_persona WHERE id_mensual=?').all(idM);
+  if (snapshotRows.length > 0) {
+    fs.mkdirSync(config.BACKUP_DIR, { recursive: true });
+    const backupFile = path.join(config.BACKUP_DIR, `mensual_${idM}_${m.mes}_${Date.now()}.json`);
+    try {
+      fs.writeFileSync(backupFile, JSON.stringify(snapshotRows, null, 2), 'utf8');
+    } catch (err) {
+      req.flash(`No se pudo respaldar el snapshot antes de reabrir: ${err.message}`, 'error');
+      return res.redirect(`/mensual/${idM}`);
+    }
+  }
+
   const motivo = (req.body.motivo || '').trim();
   const tx = conn.transaction(() => {
     conn.prepare("UPDATE mensual SET estado='abierto' WHERE id_mensual=?").run(idM);
@@ -186,7 +213,7 @@ router.post('/:id_m/reabrir', (req, res) => {
   const detalle = { obra_nombre: m.nom_o, empresa_id: m.id_empresa, empresa_nombre: m.nom_e, mes: m.mes };
   if (motivo) detalle.motivo = motivo;
   logEvent(conn, 'REABRIR_MENSUAL', 'mensual', idM, m.id_obra, detalle, req.flash);
-  req.flash('Mes reabierto. El snapshot anterior fue eliminado.', 'warning');
+  req.flash('Mes reabierto. El snapshot anterior fue respaldado y eliminado.', 'warning');
   res.redirect(`/mensual/${idM}`);
 });
 
@@ -276,7 +303,7 @@ router.get('/:id_m/excel', (req, res) => {
       .all(idM);
   } else {
     // Si aún está abierto, calculamos al vuelo
-    const filasCalc = calcularFilasMensual(conn, m.id_obra, m.id_empresa, m.mes, days);
+    const { filas: filasCalc } = calcularFilasMensual(conn, m.id_obra, m.id_empresa, m.mes);
     rows = filasCalc.map((f) => {
       const row = {
         empresa_cache: f.empresa_cache,
@@ -331,7 +358,7 @@ router.get('/:id_m/imprimir', (req, res) => {
       )
       .all(idM);
   } else {
-    const filasCalc = calcularFilasMensual(conn, m.id_obra, m.id_empresa, m.mes, days);
+    const { filas: filasCalc } = calcularFilasMensual(conn, m.id_obra, m.id_empresa, m.mes);
     rows = filasCalc.map((f) => {
       const row = {
         empresa_cache: f.empresa_cache,

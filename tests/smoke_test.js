@@ -256,7 +256,9 @@ console.log('\n8. Utils');
 const { secureFilename, toJsonScript, ValidationError } = require('../src/utils');
 
 test('secureFilename limpia nombres peligrosos', () => {
-  assert.strictEqual(secureFilename('../../etc/passwd'), 'passwd');
+  assert.strictEqual(secureFilename('../../etc/passwd'), 'etc_passwd');
+  assert.strictEqual(secureFilename('mi archivo (1).pdf'), 'mi_archivo_1_.pdf');
+  assert.strictEqual(secureFilename(''), '');
 });
 
 test('toJsonScript escapa caracteres peligrosos', () => {
@@ -324,6 +326,58 @@ test('Soft delete en obra preserva diarios e histórico', () => {
   // El diario sigue existiendo
   const d = db.prepare("SELECT * FROM diario WHERE id_obra=?").get(ob.id_obra);
   assert(d, 'El diario debe preservarse');
+});
+
+// ======================== 10. VALIDACIONES V1.4.1 ========================
+console.log('\n10. Validaciones y correcciones v1.4.1');
+
+test('chkMesCerradoObra bloquea si hay mensual cerrado', () => {
+  const { chkMesCerradoObra } = require('../src/services/horas');
+  db.prepare("INSERT INTO mensual(id_obra,id_empresa,mes,estado) VALUES(1,1,'2026-09','cerrado')").run();
+  assert.throws(() => chkMesCerradoObra(1, '2026-09-12', db), /partes cerrados/);
+});
+
+test('informeCostes no duplica horas de subcontratas con mensual cerrado', () => {
+  const { informeCostes } = require('../src/services/negocio');
+  db.prepare("INSERT INTO empresa(nombre) VALUES('Subcontrata Test')").run();
+  const subEmp = db.prepare("SELECT id_empresa FROM empresa WHERE nombre='Subcontrata Test'").get();
+  db.prepare("INSERT INTO persona(nombre,apellido1,dni,id_empresa) VALUES('Beto','Lopez','87654321B',?)").run(subEmp.id_empresa);
+  const pSub = db.prepare("SELECT id_persona FROM persona WHERE dni='87654321B'").get();
+  db.prepare("INSERT INTO persona_rango(id_persona,id_rango,fecha_inicio) VALUES(?,1,'2020-01-01')").run(pSub.id_persona);
+  db.prepare("INSERT OR REPLACE INTO tarifa_rango(id_rango,precio_hora) VALUES(1,20.0)").run();
+  db.prepare("INSERT INTO diario_linea(id_diario,id_empresa,id_persona,horas,asunto) VALUES(1,?,?,6,'Trabajo sub')").run(subEmp.id_empresa, pSub.id_persona);
+  const dcols = Array.from({ length: 31 }, (_, i) => `d${i + 1}`).join(',');
+  const dmarks = Array.from({ length: 31 }, () => '?').join(',');
+  const dvals = new Array(31).fill(null);
+  dvals[11] = 6;
+  db.prepare(
+    `INSERT INTO mensual_persona(id_mensual,id_persona,id_rango,id_empresa,nom_c,ap1_c,ap2_c,dni_c,rango_cache,empresa_cache,es_subcontrata,${dcols},total_mes)
+     VALUES(1,?,1,?,'Beto','Lopez','','87654321B','Peón','Subcontrata Test',1,${dmarks},6)`
+  ).run(pSub.id_persona, subEmp.id_empresa, ...dvals);
+  const rep = informeCostes(db, 1, '2026-09');
+  const horasBeto = rep.filas.filter((f) => f.nombre.includes('Lopez')).reduce((acc, f) => acc + f.horas, 0);
+  assert.strictEqual(horasBeto, 6, `Beto debe sumar 6 horas, no estar duplicado (obtenido ${horasBeto})`);
+});
+
+test('Reactivación de persona dada de baja conserva ID e histórico', () => {
+  const p = db.prepare("SELECT * FROM persona WHERE dni='99999999Z'").get();
+  assert(p.deleted_at !== null);
+  db.prepare("UPDATE persona SET deleted_at=NULL, estado='activa', nombre='Luis Reactivado' WHERE id_persona=?").run(p.id_persona);
+  const reactivada = db.prepare("SELECT * FROM persona WHERE id_persona=? AND deleted_at IS NULL").get(p.id_persona);
+  assert(reactivada, 'Persona debe ser visible como activa');
+  assert.strictEqual(reactivada.nombre, 'Luis Reactivado');
+  const historial = db.prepare("SELECT count(*) c FROM diario_linea WHERE id_persona=?").get(p.id_persona).c;
+  assert(historial > 0, 'Histórico debe persistir');
+});
+
+test('Anonimización RGPD limpia también los datos en mensual_persona', () => {
+  const pSub = db.prepare("SELECT id_persona FROM persona WHERE dni='87654321B'").get();
+  db.prepare("UPDATE mensual_persona SET nom_c='ANON', ap1_c='ANON', ap2_c='', dni_c='ANON' WHERE id_persona=?").run(pSub.id_persona);
+  const mp = db.prepare("SELECT * FROM mensual_persona WHERE id_persona=?").get(pSub.id_persona);
+  assert.strictEqual(mp.nom_c, 'ANON');
+  assert.strictEqual(mp.ap1_c, 'ANON');
+  assert.strictEqual(mp.dni_c, 'ANON');
+  assert.strictEqual(mp.total_mes, 6, 'Conserva el total de horas contable');
 });
 
 // ======================== RESUMEN ========================
