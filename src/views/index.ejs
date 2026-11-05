@@ -79,7 +79,7 @@
       <div>
         <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
           <div>
-            <h5 class="h6 fw-bold mb-1 text-white"><%= ob.nombre %></h5>
+            <h5 class="h6 fw-bold mb-1 text-body-emphasis"><%= ob.nombre %></h5>
             <span class="badge bg-secondary font-monospace" style="font-size: 0.7rem;"><%= ob.codigo %></span>
           </div>
           <% if (tienePersonal) { %>
@@ -91,7 +91,7 @@
               <i class="bi bi-clock me-1"></i> Abierto (0h)
             </span>
           <% } else { %>
-            <span class="badge bg-dark text-secondary border border-secondary" title="Aún no se ha registrado parte para hoy">
+            <span class="badge bg-body-tertiary text-body-secondary border border-secondary-subtle" title="Aún no se ha registrado parte para hoy">
               Pendiente
             </span>
           <% } %>
@@ -103,10 +103,10 @@
           <p class="text-muted small mb-3 fst-italic">Sin descripción detallada.</p>
         <% } %>
 
-        <div class="bg-dark p-2 rounded-2 mb-3 d-flex justify-content-around text-center border border-secondary-subtle">
+        <div class="bg-body-tertiary p-2 rounded-2 mb-3 d-flex justify-content-around text-center border border-secondary-subtle">
           <div>
             <span class="small text-secondary d-block" style="font-size: 0.7rem;">Operarios hoy</span>
-            <strong class="font-monospace fs-6 text-light"><%= dh ? dh.personal_hoy : 0 %></strong>
+            <strong class="font-monospace fs-6 text-body-emphasis"><%= dh ? dh.personal_hoy : 0 %></strong>
           </div>
           <div class="border-end border-secondary-subtle"></div>
           <div>
