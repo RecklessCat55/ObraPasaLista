@@ -1,4 +1,4 @@
-<div class="container-fluid px-2 py-1" style="max-width: 720px;">
+<div class="container-fluid px-2 py-1" style="max-width: 720px;" id="diario-movil-app" data-id-diario="<%= d.id_diario %>">
   <!-- CABECERA MÓVIL STICKY -->
   <div class="card mb-3 sticky-top border-primary shadow-sm" style="top: 0; z-index: 1020; background: var(--opl-bg-surface);">
     <div class="card-body p-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -182,17 +182,20 @@
 
 <script>
 (function() {
-  const idDiario = <%= d.id_diario %>;
+  const appContainer = document.getElementById('diario-movil-app');
+  const idDiario = appContainer ? parseInt(appContainer.getAttribute('data-id-diario'), 10) : null;
 
   // Filtro en tiempo real
   const inputFiltro = document.getElementById('filtro-trabajador');
-  inputFiltro.addEventListener('input', function() {
-    const q = this.value.toLowerCase().trim();
-    document.querySelectorAll('.tarjeta-operario').forEach(card => {
-      const nom = card.getAttribute('data-nombre') || '';
-      card.style.display = nom.includes(q) ? '' : 'none';
+  if (inputFiltro) {
+    inputFiltro.addEventListener('input', function() {
+      const q = this.value.toLowerCase().trim();
+      document.querySelectorAll('.tarjeta-operario').forEach(function(card) {
+        const nom = card.getAttribute('data-nombre') || '';
+        card.style.display = nom.includes(q) ? '' : 'none';
+      });
     });
-  });
+  }
 
   // Delegación de clics en botones de acción rápida
   document.addEventListener('click', async function(e) {
@@ -206,7 +209,8 @@
     const idDl = card.getAttribute('data-id-dl') || null;
     const idPersona = card.getAttribute('data-id-persona');
     const idEmpresa = card.getAttribute('data-id-empresa');
-    const idPartida = document.getElementById('selector-partida-rapida').value || null;
+    const selPartida = document.getElementById('selector-partida-rapida');
+    const idPartida = selPartida ? (selPartida.value || null) : null;
 
     btn.disabled = true;
     const badgeHoras = card.querySelector('.badge-horas-linea');
