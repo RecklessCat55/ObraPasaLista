@@ -127,8 +127,10 @@
 </div>
 
 <% if (lineas.length) { %>
-<div class="card mb-3"><div class="card-body p-0">
-<table class="table table-sm table-hover mb-0">
+<div class="card mb-3 shadow-sm border-secondary-subtle">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle mb-0">
   <thead><tr><th>Persona</th><th>Empresa</th><th>Rango</th><th>Partida</th><th>Asunto</th><th class="hth">Horas</th><th class="hth"></th></tr></thead>
   <tbody>
   <% lineas.forEach(function(l) { %>
@@ -207,7 +209,10 @@
   <% } %>
   <% }); %>
   </tbody>
-</table></div></div>
+</table>
+    </div>
+  </div>
+</div>
 <% } else { %>
 <div class="alert alert-secondary">Sin personal registrado hoy.</div>
 <% } %>

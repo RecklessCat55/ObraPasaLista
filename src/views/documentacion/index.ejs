@@ -44,9 +44,25 @@
     <ul class="list-unstyled mb-2 small">
       <% var archs = archivos_por_carpeta[c.id_carpeta] || []; %>
       <% if (archs.length === 0) { %><li class="text-muted">Sin archivos.</li><% } %>
+      <% 
+        function getFileIcon(name) {
+          const n = (name || '').toLowerCase();
+          if (n.endsWith('.pdf')) return 'bi-file-earmark-pdf-fill text-danger';
+          if (n.match(/\.(png|jpe?g|webp|gif|svg)$/)) return 'bi-file-earmark-image-fill text-info';
+          if (n.match(/\.(dwg|dxf|cad)$/)) return 'bi-file-earmark-ruled-fill text-warning';
+          if (n.match(/\.(xlsx?|csv)$/)) return 'bi-file-earmark-excel-fill text-success';
+          if (n.match(/\.(docx?)$/)) return 'bi-file-earmark-word-fill text-primary';
+          return 'bi-file-earmark-text text-secondary';
+        }
+      %>
       <% archs.forEach(function(a) { %>
-      <li><i class="bi bi-file-earmark"></i> <a href="/documentacion/archivo/<%= a.id_archivo %>/descargar"><%= a.nombre %></a>
-        <span class="text-muted" style="font-size:.8rem">(<%= a.fecha_subida %>)</span></li>
+      <li class="py-1 border-bottom border-dark d-flex align-items-center justify-content-between">
+        <div>
+          <i class="bi <%= getFileIcon(a.nombre) %> me-1"></i>
+          <a href="/documentacion/archivo/<%= a.id_archivo %>/descargar" class="text-decoration-none fw-medium"><%= a.nombre %></a>
+        </div>
+        <span class="text-secondary" style="font-size:.75rem"><%= a.fecha_subida %></span>
+      </li>
       <% }); %>
     </ul>
     <% var subs = subcarpetas_por_padre[c.id_carpeta] || []; %>
@@ -57,7 +73,13 @@
         <% var archsSc = archivos_por_carpeta[sc.id_carpeta] || []; %>
         <% if (archsSc.length === 0) { %><li class="text-muted">Sin archivos.</li><% } %>
         <% archsSc.forEach(function(a) { %>
-        <li><i class="bi bi-file-earmark"></i> <a href="/documentacion/archivo/<%= a.id_archivo %>/descargar"><%= a.nombre %></a></li>
+        <li class="py-1 border-bottom border-dark d-flex align-items-center justify-content-between">
+          <div>
+            <i class="bi <%= getFileIcon(a.nombre) %> me-1"></i>
+            <a href="/documentacion/archivo/<%= a.id_archivo %>/descargar" class="text-decoration-none fw-medium"><%= a.nombre %></a>
+          </div>
+          <span class="text-secondary" style="font-size:.75rem"><%= a.fecha_subida %></span>
+        </li>
         <% }); %>
       </ul>
       <% if (obra.estado !== 'finalizada') { %>

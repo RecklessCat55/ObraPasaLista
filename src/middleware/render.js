@@ -31,6 +31,7 @@ function renderPage(req, res, template, locals = {}) {
     const layoutLocals = {
       title: locals.title || 'OPL',
       active: locals.active || null,
+      currentPath: req.originalUrl || req.baseUrl + req.path || '',
       hoy: fsDate(new Date()),
       messages: popFlashed(req),
       scripts: locals.scripts || '',

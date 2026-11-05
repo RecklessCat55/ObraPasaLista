@@ -1,80 +1,313 @@
 <!DOCTYPE html>
 <html lang="es" data-bs-theme="dark">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title><%= title %> — ObraPasaLista</title>
-<link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css">
-<link rel="stylesheet" href="/vendor/bootstrap-icons/font/bootstrap-icons.min.css">
-<style>
-body{background:#0d1117}
-.navbar-brand{color:#f97316!important;font-weight:800}
-.btn-opl{background:#f97316;border-color:#f97316;color:#fff}
-.btn-opl:hover,.btn-opl:focus{background:#c2410c;border-color:#c2410c;color:#fff}
-.nav-link.hi{color:#f97316!important;font-weight:600}
-.card{border-color:#30363d}.card-header{background:#161b22;border-color:#30363d}
-.sec{color:#f97316;font-weight:700;border-bottom:2px solid #30363d;padding-bottom:.3rem;margin-bottom:.9rem;font-size:.95rem}
-/* Tamaños de fuente y zonas de toque ampliados: dedos sucios/guantes, presbicia, uso en exterior */
-.htd{text-align:center;font-family:monospace;font-size:1rem;padding:10px 8px!important;min-width:48px;min-height:44px}
-.hth{text-align:center;font-size:.95rem;padding:8px 6px!important;min-width:48px}
-.badge-activa,.badge-abierto{background:#22c55e!important}
-.badge-inactiva,.badge-finalizada,.badge-baja,.badge-cerrado{background:#6b7280!important}
-.table-sm td,.table-sm th{font-size:.95rem;padding:.55rem .5rem!important}
-.badge{font-size:.8rem!important}
-.btn{min-height:44px}
-.btn-sm{min-height:38px;padding:.4rem .7rem!important}
-.btn-link.btn-sm{min-height:44px;padding:.4rem .6rem!important}
-</style></head>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title><%= title %> — ObraPasaLista</title>
+  <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/vendor/bootstrap-icons/font/bootstrap-icons.min.css">
+  <style>
+    :root {
+      --opl-orange: #f97316;
+      --opl-orange-hover: #ea580c;
+      --opl-bg-base: #0d1117;
+      --opl-bg-surface: #161b22;
+      --opl-border: #30363d;
+      --opl-text: #e6edf3;
+      --opl-text-muted: #8b949e;
+    }
+    body {
+      background-color: var(--opl-bg-base);
+      color: var(--opl-text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      min-height: 100vh;
+    }
+    /* Brand & Accent */
+    .navbar-brand {
+      color: var(--opl-orange) !important;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+    }
+    .btn-opl {
+      background-color: var(--opl-orange);
+      border-color: var(--opl-orange);
+      color: #fff !important;
+      font-weight: 500;
+      transition: all 0.15s ease-in-out;
+    }
+    .btn-opl:hover, .btn-opl:focus {
+      background-color: var(--opl-orange-hover);
+      border-color: var(--opl-orange-hover);
+      box-shadow: 0 0 0 0.25rem rgba(249, 115, 22, 0.25);
+    }
+    .btn-outline-opl {
+      color: var(--opl-orange) !important;
+      border-color: var(--opl-orange);
+    }
+    .btn-outline-opl:hover {
+      background-color: var(--opl-orange);
+      color: #fff !important;
+    }
+
+    /* Cards & Containers */
+    .card {
+      background-color: var(--opl-bg-surface);
+      border-color: var(--opl-border);
+      border-radius: 8px;
+    }
+    .card-header {
+      background-color: rgba(255, 255, 255, 0.02);
+      border-color: var(--opl-border);
+    }
+    .sec {
+      color: var(--opl-orange);
+      font-weight: 700;
+      border-bottom: 2px solid var(--opl-border);
+      padding-bottom: 0.35rem;
+      margin-bottom: 0.9rem;
+      font-size: 0.95rem;
+      letter-spacing: 0.2px;
+    }
+
+    /* Navegación activa */
+    .nav-link {
+      color: var(--opl-text-muted);
+      font-weight: 500;
+      padding: 0.5rem 0.75rem !important;
+      border-radius: 6px;
+      transition: color 0.15s, background-color 0.15s;
+    }
+    .nav-link:hover {
+      color: var(--opl-text);
+      background-color: rgba(255, 255, 255, 0.04);
+    }
+    .nav-link.hi {
+      color: var(--opl-orange) !important;
+      font-weight: 600;
+      background-color: rgba(249, 115, 22, 0.1);
+    }
+
+    /* Zonas de toque ampliadas para obra (dedos con polvo, guantes, pantallas táctiles) */
+    .btn { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; }
+    .btn-sm { min-height: 36px; padding: 0.35rem 0.65rem !important; }
+    .btn-link.btn-sm { min-height: 36px; padding: 0.35rem 0.5rem !important; }
+    .htd { text-align: center; font-family: monospace; font-size: 1rem; padding: 8px 6px !important; min-width: 48px; min-height: 44px; }
+    .hth { text-align: center; font-size: 0.9rem; padding: 8px 6px !important; min-width: 48px; }
+
+    /* Badges de estado */
+    .badge-activa, .badge-abierto { background-color: #10b981 !important; color: #fff; }
+    .badge-inactiva, .badge-finalizada, .badge-baja, .badge-cerrado { background-color: #64748b !important; color: #fff; }
+    .badge-alerta { background-color: #f59e0b !important; color: #000; }
+
+    /* Inputs accesibles */
+    .form-control:focus, .form-select:focus {
+      border-color: var(--opl-orange);
+      box-shadow: 0 0 0 0.25rem rgba(249, 115, 22, 0.25);
+    }
+
+    /* Barra inferior para móviles (Bottom Navigation Bar) */
+    @media (max-width: 767.98px) {
+      body {
+        padding-bottom: 72px; /* espacio para la barra inferior */
+      }
+      .opl-bottom-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 60px;
+        background-color: #161b22;
+        border-top: 1px solid var(--opl-border);
+        display: flex;
+        align-items: center;
+        justify-content: space-around;
+        z-index: 1040;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+      }
+      .opl-bottom-nav a {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: var(--opl-text-muted);
+        text-decoration: none;
+        font-size: 0.72rem;
+        flex: 1;
+        height: 100%;
+        transition: color 0.15s;
+      }
+      .opl-bottom-nav a i {
+        font-size: 1.25rem;
+        margin-bottom: 2px;
+      }
+      .opl-bottom-nav a.active {
+        color: var(--opl-orange);
+        font-weight: 600;
+      }
+    }
+  </style>
+</head>
 <body>
+<!-- NAVBAR SUPERIOR ESCRITORIO / TABLET -->
 <nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom border-secondary-subtle mb-3 py-1">
-<div class="container-fluid">
-  <a class="navbar-brand" href="/"><i class="bi bi-building-fill"></i> ObraPasaLista
-    <span class="badge bg-secondary fw-light ms-1" style="font-size:.55rem">v1.5</span>
-  </a>
-  <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nb">
-    <span class="navbar-toggler-icon"></span>
-  </button>
-  <div class="collapse navbar-collapse" id="nb">
-    <ul class="navbar-nav me-auto">
-      <li class="nav-item"><a class="nav-link <%= active==='home' ? 'hi' : '' %>" href="/"><i class="bi bi-house"></i> Inicio</a></li>
-      <li class="nav-item"><a class="nav-link <%= active==='diario' ? 'hi' : '' %>" href="/diario/"><i class="bi bi-calendar-day"></i> Diario</a></li>
-      <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle <%= active==='mas' ? 'hi' : '' %>" href="#" data-bs-toggle="dropdown">
-          <i class="bi bi-three-dots"></i> Más
-        </a>
-        <ul class="dropdown-menu dropdown-menu-dark">
-          <li><h6 class="dropdown-header">Obras y personal</h6></li>
-          <li><a class="dropdown-item" href="/obras/"><i class="bi bi-buildings"></i> Obras</a></li>
-          <li><a class="dropdown-item" href="/empresas/"><i class="bi bi-briefcase"></i> Empresas</a></li>
-          <li><a class="dropdown-item" href="/personas/"><i class="bi bi-people"></i> Personas</a></li>
-          <li><a class="dropdown-item" href="/cae/alertas"><i class="bi bi-shield-exclamation text-warning"></i> Alertas PRL / CAE</a></li>
-          <li><a class="dropdown-item" href="/rangos/"><i class="bi bi-award"></i> Rangos</a></li>
-          <li><a class="dropdown-item" href="/subcontratas/"><i class="bi bi-diagram-3"></i> Subcontratas</a></li>
-          <li><hr class="dropdown-divider"></li>
-          <li><h6 class="dropdown-header">Informes y cierre</h6></li>
-          <li><a class="dropdown-item" href="/mensual/"><i class="bi bi-calendar-month"></i> Mensual</a></li>
-          <li><a class="dropdown-item" href="/informes/costes"><i class="bi bi-cash-coin"></i> Costes</a></li>
-          <li><hr class="dropdown-divider"></li>
-          <li><h6 class="dropdown-header">Sistema</h6></li>
-          <li><a class="dropdown-item" href="/backup/"><i class="bi bi-hdd"></i> Backup</a></li>
-          <li><a class="dropdown-item" href="/config/"><i class="bi bi-sliders"></i> Config general</a></li>
-          <li><a class="dropdown-item" href="/config/metas"><i class="bi bi-bullseye"></i> Metas de horas</a></li>
-        </ul>
-      </li>
-    </ul>
-    <ul class="navbar-nav">
-      <li class="nav-item"><a class="nav-link <%= active==='faq' ? 'hi' : '' %>" href="/faq/"><i class="bi bi-question-circle"></i> Ayuda</a></li>
-    </ul>
+  <div class="container-fluid">
+    <a class="navbar-brand d-flex align-items-center gap-2" href="/">
+      <i class="bi bi-building-fill text-warning"></i>
+      <span>ObraPasaLista</span>
+      <span class="badge bg-secondary fw-normal" style="font-size: 0.6rem;">v1.5</span>
+    </a>
+
+    <!-- Botón hamburguesa en móvil -->
+    <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain" aria-controls="navbarMain" aria-expanded="false" aria-label="Menú">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarMain">
+      <% 
+        const cp = typeof currentPath !== 'undefined' ? currentPath : '';
+        const isHome = active === 'home' || cp === '/';
+        const isDiario = active === 'diario' || cp.startsWith('/diario');
+        const isMensual = cp.startsWith('/mensual');
+        const isObras = cp.startsWith('/obras');
+        const isPersonas = active === 'personas' || cp.startsWith('/personas');
+        const isEmpresas = active === 'empresas' || cp.startsWith('/empresas');
+        const isEquipo = isPersonas || isEmpresas || cp.startsWith('/subcontratas') || cp.startsWith('/rangos');
+        const isCae = cp.startsWith('/cae');
+        const isGestion = cp.startsWith('/informes') || cp.startsWith('/backup') || cp.startsWith('/config');
+        const isFaq = active === 'faq' || cp.startsWith('/faq');
+      %>
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0 gap-lg-1">
+        <!-- OPERATIVA PRINCIPAL -->
+        <li class="nav-item">
+          <a class="nav-link <%= isHome ? 'hi' : '' %>" href="/">
+            <i class="bi bi-house"></i> Inicio
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link <%= isDiario ? 'hi' : '' %>" href="/diario/">
+            <i class="bi bi-calendar-day"></i> Diario
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link <%= isMensual ? 'hi' : '' %>" href="/mensual/">
+            <i class="bi bi-calendar-month"></i> Mensual
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link <%= isObras ? 'hi' : '' %>" href="/obras/">
+            <i class="bi bi-buildings"></i> Obras
+          </a>
+        </li>
+
+        <!-- EQUIPO Y EMPRESAS -->
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle <%= isEquipo ? 'hi' : '' %>" href="#" role="button" data-bs-toggle="dropdown">
+            <i class="bi bi-people"></i> Equipo
+          </a>
+          <ul class="dropdown-menu dropdown-menu-dark shadow">
+            <li><h6 class="dropdown-header text-uppercase small text-muted">Personal & Cuadrillas</h6></li>
+            <li><a class="dropdown-item <%= isPersonas ? 'active' : '' %>" href="/personas/"><i class="bi bi-person me-2"></i> Personas</a></li>
+            <li><a class="dropdown-item <%= isEmpresas ? 'active' : '' %>" href="/empresas/"><i class="bi bi-briefcase me-2"></i> Empresas contratistas</a></li>
+            <li><a class="dropdown-item" href="/subcontratas/"><i class="bi bi-diagram-3 me-2"></i> Subcontratas</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="/rangos/"><i class="bi bi-award me-2"></i> Rangos y tarifas</a></li>
+          </ul>
+        </li>
+
+        <!-- ALERTAS PRL / CAE (DESTACADO DIRECTO) -->
+        <li class="nav-item">
+          <a class="nav-link <%= isCae ? 'hi' : '' %>" href="/cae/alertas">
+            <i class="bi bi-shield-exclamation text-warning"></i> Alertas PRL
+          </a>
+        </li>
+
+        <!-- GESTIÓN Y CONFIGURACIÓN -->
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle <%= isGestion ? 'hi' : '' %>" href="#" role="button" data-bs-toggle="dropdown">
+            <i class="bi bi-gear"></i> Gestión
+          </a>
+          <ul class="dropdown-menu dropdown-menu-dark shadow">
+            <li><h6 class="dropdown-header text-uppercase small text-muted">Control económico</h6></li>
+            <li><a class="dropdown-item" href="/informes/costes"><i class="bi bi-cash-coin me-2"></i> Informe de costes</a></li>
+            <li><a class="dropdown-item" href="/config/metas"><i class="bi bi-bullseye me-2"></i> Metas de horas</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><h6 class="dropdown-header text-uppercase small text-muted">Mantenimiento</h6></li>
+            <li><a class="dropdown-item" href="/backup/"><i class="bi bi-hdd me-2"></i> Copias de seguridad</a></li>
+            <li><a class="dropdown-item" href="/config/"><i class="bi bi-sliders me-2"></i> Configuración general</a></li>
+          </ul>
+        </li>
+      </ul>
+
+      <!-- DERECHA: AYUDA Y FECHA -->
+      <ul class="navbar-nav align-items-lg-center gap-2">
+        <li class="nav-item d-none d-xl-block text-secondary small me-2">
+          <i class="bi bi-calendar3"></i> <%= hoy %>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link <%= isFaq ? 'hi' : '' %>" href="/faq/">
+            <i class="bi bi-question-circle"></i> Ayuda
+          </a>
+        </li>
+      </ul>
+    </div>
   </div>
-</div>
 </nav>
-<div class="container-fluid px-4">
-<% messages.forEach(function(m) { var cat = m[0], msg = m[1];
-   var cls = cat === 'error' ? 'danger' : (cat === 'success' ? 'success' : (cat === 'warning' ? 'warning' : 'info')); %>
-<div class="alert alert-<%= cls %> alert-dismissible fade show py-2">
-  <%= msg %><button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+
+<!-- CONTENEDOR PRINCIPAL -->
+<div class="container-fluid px-3 px-md-4">
+  <!-- MENSAJES Y NOTIFICACIONES FLASH -->
+  <% if (messages && messages.length > 0) { %>
+    <div class="mb-3">
+      <% messages.forEach(function(m) { 
+           var cat = m[0], msg = m[1];
+           var cls = cat === 'error' ? 'danger' : (cat === 'success' ? 'success' : (cat === 'warning' ? 'warning' : 'info'));
+           var ico = cat === 'error' ? 'bi-exclamation-triangle-fill' : (cat === 'success' ? 'bi-check-circle-fill' : (cat === 'warning' ? 'bi-exclamation-circle-fill' : 'bi-info-circle-fill'));
+      %>
+      <div class="alert alert-<%= cls %> alert-dismissible fade show py-2 px-3 d-flex align-items-center gap-2 shadow-sm border-0 mb-2">
+        <i class="bi <%= ico %> fs-5"></i>
+        <div class="flex-grow-1"><%= msg %></div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+      </div>
+      <% }); %>
+    </div>
+  <% } %>
+
+  <!-- CUERPO DE LA PÁGINA -->
+  <%- body %>
 </div>
-<% }); %>
-<%- body %>
-</div>
+
+<!-- BARRA INFERIOR DE ACCESO RÁPIDO PARA MÓVILES (< 768px) -->
+<nav class="opl-bottom-nav d-md-none" aria-label="Navegación móvil inferior">
+  <% 
+    const isBottomHome = active === 'home' || cp === '/';
+    const isBottomDiario = active === 'diario' || cp.startsWith('/diario');
+    const isBottomObras = cp.startsWith('/obras');
+    const isBottomCae = cp.startsWith('/cae');
+    const isBottomMensual = cp.startsWith('/mensual');
+  %>
+  <a href="/" class="<%= isBottomHome ? 'active' : '' %>">
+    <i class="bi bi-house<%= isBottomHome ? '-fill' : '' %>"></i>
+    <span>Inicio</span>
+  </a>
+  <a href="/diario/" class="<%= isBottomDiario ? 'active' : '' %>">
+    <i class="bi bi-calendar-day<%= isBottomDiario ? '-fill' : '' %>"></i>
+    <span>Diario</span>
+  </a>
+  <a href="/obras/" class="<%= isBottomObras ? 'active' : '' %>">
+    <i class="bi bi-buildings<%= isBottomObras ? '-fill' : '' %>"></i>
+    <span>Obras</span>
+  </a>
+  <a href="/cae/alertas" class="<%= isBottomCae ? 'active' : '' %>">
+    <i class="bi bi-shield-exclamation"></i>
+    <span>PRL</span>
+  </a>
+  <a href="/mensual/" class="<%= isBottomMensual ? 'active' : '' %>">
+    <i class="bi bi-calendar-month<%= isBottomMensual ? '-fill' : '' %>"></i>
+    <span>Mensual</span>
+  </a>
+</nav>
+
 <script src="/vendor/bootstrap/bootstrap.bundle.min.js"></script>
 <%- scripts %>
-</body></html>
+</body>
+</html>
