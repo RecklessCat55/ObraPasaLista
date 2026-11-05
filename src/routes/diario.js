@@ -28,7 +28,42 @@ const M_ICO = Object.fromEntries(METEO);
 router.get('/', (req, res) => {
   const conn = db.getDb();
   const obras = conn.prepare("SELECT * FROM obra WHERE estado='activa' AND deleted_at IS NULL ORDER BY nombre").all();
-  renderPage(req, res, 'diario/sel', { title: 'Diario', active: 'diario', obras });
+  const hoyD = new Date();
+  const hoy = fsDate(hoyD);
+  const ayerD = new Date(hoyD);
+  ayerD.setDate(ayerD.getDate() - 1);
+  const ayer = fsDate(ayerD);
+  const mananaD = new Date(hoyD);
+  mananaD.setDate(mananaD.getDate() + 1);
+  const manana = fsDate(mananaD);
+
+  const ultimosDiarios = conn
+    .prepare(
+      `SELECT d.id_diario, d.fecha, d.id_obra, d.meteo_estado, d.meteo_temp_c, d.notas,
+              o.nombre nom_obra, o.codigo cod_obra,
+              COALESCE(SUM(dl.horas), 0) total_horas,
+              COUNT(dl.id_dl) num_personas
+       FROM diario d
+       JOIN obra o ON d.id_obra = o.id_obra
+       LEFT JOIN diario_linea dl ON d.id_diario = dl.id_diario
+       WHERE o.deleted_at IS NULL
+       GROUP BY d.id_diario
+       ORDER BY d.fecha DESC, o.nombre
+       LIMIT 15`
+    )
+    .all();
+
+  renderPage(req, res, 'diario/sel', {
+    title: 'Diario',
+    active: 'diario',
+    obras,
+    hoy,
+    ayer,
+    manana,
+    ultimos_diarios: ultimosDiarios,
+    m_ico: M_ICO,
+    hhmm,
+  });
 });
 
 router.get('/ir', (req, res) => {
@@ -107,6 +142,14 @@ router.get('/:id_obra(\\d+)/:fecha_raw([0-9-]+)', (req, res) => {
     .get(idObra, fecha);
   const total = conn.prepare('SELECT COALESCE(SUM(horas),0) t FROM diario_linea WHERE id_diario=?').get(d.id_diario).t;
 
+  const curDate = new Date(fecha);
+  const prevDate = new Date(curDate);
+  prevDate.setDate(prevDate.getDate() - 1);
+  const nextDate = new Date(curDate);
+  nextDate.setDate(nextDate.getDate() + 1);
+  const fechaAnterior = fsDate(prevDate);
+  const fechaSiguiente = fsDate(nextDate);
+
   renderPage(req, res, 'diario/ver', {
     title: `Parte ${fecha}`,
     active: 'diario',
@@ -114,6 +157,8 @@ router.get('/:id_obra(\\d+)/:fecha_raw([0-9-]+)', (req, res) => {
     d,
     lineas,
     fecha,
+    fecha_anterior: fechaAnterior,
+    fecha_siguiente: fechaSiguiente,
     emps_obra: empsObra,
     pers_x_emp: persXEmp,
     rangos,
@@ -390,6 +435,29 @@ router.post('/:id_d/meteo', (req, res) => {
   }
   res.redirect(`/diario/${d.id_obra}/${fsDate(d.fecha)}`);
 });
+router.post('/:id_d/notas', (req, res) => {
+  const conn = db.getDb();
+  const idD = parseInt(req.params.id_d, 10);
+  const d = conn.prepare('SELECT * FROM diario WHERE id_diario=?').get(idD);
+  const isAjax = req.xhr || (req.headers.accept && req.headers.accept.includes('application/json')) || req.is('json');
+  if (!d) {
+    if (isAjax) return res.status(404).json({ error: 'Diario no encontrado.' });
+    req.flash('Diario no encontrado.', 'error');
+    return res.redirect('/diario/');
+  }
+  try {
+    chkObraActiva(conn, d.id_obra);
+    chkMesCerradoObra(conn, d.id_obra, d.fecha);
+    const notas = (req.body.notas !== undefined ? req.body.notas : '').trim();
+    conn.prepare('UPDATE diario SET notas=? WHERE id_diario=?').run(notas, idD);
+    if (isAjax) return res.json({ success: true, notas });
+    req.flash('Notas del parte diario actualizadas.', 'success');
+  } catch (e) {
+    if (isAjax) return res.status(400).json({ error: e.message });
+    req.flash(e.message, 'error');
+  }
+  res.redirect(`/diario/${d.id_obra}/${fsDate(d.fecha)}`);
+});
 
 router.post('/:id_d/arrastrar', (req, res) => {
   const conn = db.getDb();
@@ -475,6 +543,14 @@ router.get('/:id_diario/asignacion-masiva', (req, res) => {
     .all(d.id_obra);
   const partidas = conn.prepare('SELECT * FROM partida_obra WHERE id_obra=? ORDER BY codigo').all(d.id_obra);
   const persXEmp = loadPersXEmp(conn, empsObra);
+  const lineasExistentes = conn
+    .prepare('SELECT id_persona, id_empresa, horas FROM diario_linea WHERE id_diario=?')
+    .all(idDiario);
+  const mapaExistentes = {};
+  for (const l of lineasExistentes) {
+    mapaExistentes[`${l.id_persona}_${l.id_empresa}`] = l.horas;
+  }
+
   renderPage(req, res, 'diario/asignacionMasiva', {
     title: 'Asignación masiva',
     active: 'diario',
@@ -483,6 +559,8 @@ router.get('/:id_diario/asignacion-masiva', (req, res) => {
     emps_obra: empsObra,
     partidas,
     pers_x_emp: persXEmp,
+    mapa_existentes: mapaExistentes,
+    hhmm,
   });
 });
 
@@ -515,28 +593,40 @@ router.post('/:id_diario/asignacion-masiva', (req, res) => {
   }
 
   const creadas = [];
+  const actualizadas = [];
   const bloqueadas = [];
   for (const idPer of idsP) {
     const per = conn.prepare('SELECT nombre,apellido1 FROM persona WHERE id_persona=?').get(idPer);
     const nom = per ? `${per.apellido1}, ${per.nombre}` : `persona #${idPer}`;
     try {
       const yaExiste = conn
-        .prepare('SELECT 1 FROM diario_linea WHERE id_diario=? AND id_persona=? AND id_empresa=?')
+        .prepare('SELECT id_dl FROM diario_linea WHERE id_diario=? AND id_persona=? AND id_empresa=?')
         .get(idDiario, idPer, idEmp);
       if (yaExiste) {
-        bloqueadas.push([nom, 'ya tiene una línea en este parte para esta empresa.']);
-        continue;
+        chkMesCerrado(d.id_obra, idEmp, d.fecha, conn);
+        chkHoras(idPer, d.fecha, horas, conn, yaExiste.id_dl);
+        conn
+          .prepare(
+            `UPDATE diario_linea
+             SET horas=?,
+                 id_partida = CASE WHEN ? IS NOT NULL THEN ? ELSE id_partida END,
+                 asunto = CASE WHEN ? != '' THEN ? ELSE asunto END
+             WHERE id_dl=?`
+          )
+          .run(horas, idPa, idPa, asunto, asunto, yaExiste.id_dl);
+        actualizadas.push(nom);
+      } else {
+        chkMesCerrado(d.id_obra, idEmp, d.fecha, conn);
+        chkHoras(idPer, d.fecha, horas, conn);
+        const idR = getRangoActivo(idPer, d.fecha, conn);
+        conn
+          .prepare(
+            `INSERT INTO diario_linea(id_diario,id_empresa,id_persona,id_rango,id_partida,asunto,horas)
+             VALUES(?,?,?,?,?,?,?)`
+          )
+          .run(idDiario, idEmp, idPer, idR, idPa, asunto, horas);
+        creadas.push(nom);
       }
-      chkMesCerrado(d.id_obra, idEmp, d.fecha, conn);
-      chkHoras(idPer, d.fecha, horas, conn);
-      const idR = getRangoActivo(idPer, d.fecha, conn);
-      conn
-        .prepare(
-          `INSERT INTO diario_linea(id_diario,id_empresa,id_persona,id_rango,id_partida,asunto,horas)
-           VALUES(?,?,?,?,?,?,?)`
-        )
-        .run(idDiario, idEmp, idPer, idR, idPa, asunto, horas);
-      creadas.push(nom);
       const { valor: meta, origen } = getMetaEfectiva(conn, idPer, idEmp, d.id_obra);
       if (horas < meta) {
         req.flash(
@@ -548,10 +638,16 @@ router.post('/:id_diario/asignacion-masiva', (req, res) => {
       bloqueadas.push([nom, e.message]);
     }
   }
-  if (creadas.length) req.flash(`${creadas.length} línea(s) creadas para: ${creadas.join(', ')}.`, 'success');
+  if (creadas.length && actualizadas.length) {
+    req.flash(`${creadas.length} línea(s) creadas y ${actualizadas.length} actualizada(s).`, 'success');
+  } else if (creadas.length) {
+    req.flash(`${creadas.length} línea(s) creadas para: ${creadas.join(', ')}.`, 'success');
+  } else if (actualizadas.length) {
+    req.flash(`${actualizadas.length} línea(s) actualizadas con ${hhmm(horas)} para: ${actualizadas.join(', ')}.`, 'success');
+  }
   if (bloqueadas.length) {
     const detalle = bloqueadas.map(([n, m]) => `${n}: ${m}`).join('; ');
-    req.flash(`${bloqueadas.length} línea(s) no creadas — ${detalle}`, 'warning');
+    req.flash(`${bloqueadas.length} línea(s) bloqueadas — ${detalle}`, 'warning');
   }
   res.redirect(`/diario/${d.id_obra}/${fsDate(d.fecha)}`);
 });

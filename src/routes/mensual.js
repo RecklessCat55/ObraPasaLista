@@ -18,17 +18,69 @@ const { ValidationError } = require('../utils');
 
 router.get('/', (req, res) => {
   const conn = db.getDb();
-  const mens = conn
-    .prepare(
-      `SELECT m.*, o.nombre nom_o, o.codigo cod_o, e.nombre nom_e
-       FROM mensual m JOIN obra o ON m.id_obra=o.id_obra JOIN empresa e ON m.id_empresa=e.id_empresa
-       ORDER BY m.mes DESC, o.nombre, e.nombre`
-    )
-    .all();
+  const filtroObra = req.query.id_obra ? parseInt(req.query.id_obra, 10) : null;
+  const filtroMes = (req.query.mes || '').trim();
+  const filtroEstado = (req.query.estado || '').trim();
+
+  let sql = `SELECT m.*, o.nombre nom_o, o.codigo cod_o, e.nombre nom_e,
+              (SELECT COALESCE(SUM(mp.total_mes), 0) FROM mensual_persona mp WHERE mp.id_mensual = m.id_mensual) total_horas_snapshot,
+              (SELECT COUNT(mp.id_mp) FROM mensual_persona mp WHERE mp.id_mensual = m.id_mensual) num_personas
+       FROM mensual m 
+       JOIN obra o ON m.id_obra=o.id_obra 
+       JOIN empresa e ON m.id_empresa=e.id_empresa
+       WHERE 1=1`;
+  const params = [];
+
+  if (filtroObra) {
+    sql += ' AND m.id_obra=?';
+    params.push(filtroObra);
+  }
+  if (filtroMes) {
+    sql += ' AND m.mes=?';
+    params.push(filtroMes);
+  }
+  if (filtroEstado) {
+    sql += ' AND m.estado=?';
+    params.push(filtroEstado);
+  }
+
+  sql += ' ORDER BY m.mes DESC, o.nombre, e.nombre';
+
+  const mens = conn.prepare(sql).all(...params);
   const obras = conn.prepare("SELECT * FROM obra WHERE estado='activa' AND deleted_at IS NULL ORDER BY nombre").all();
+  const todasObras = conn.prepare("SELECT * FROM obra ORDER BY nombre").all();
   const emps = conn.prepare("SELECT * FROM empresa WHERE estado='activa' AND deleted_at IS NULL ORDER BY nombre").all();
-  const hoyMes = fsDate(new Date()).slice(0, 7);
-  renderPage(req, res, 'mensual/sel', { title: 'Mensuales', active: 'mas', mens, obras, emps, hoy_mes: hoyMes });
+  
+  const now = new Date();
+  const hoyMes = fsDate(now).slice(0, 7);
+  
+  const dAnt = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const mesAnt = fsDate(dAnt).slice(0, 7);
+  
+  const dSig = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const mesSig = fsDate(dSig).slice(0, 7);
+
+  const stats = {
+    abiertos: mens.filter(m => m.estado === 'abierto').length,
+    cerrados: mens.filter(m => m.estado === 'cerrado').length,
+  };
+
+  renderPage(req, res, 'mensual/sel', {
+    title: 'Mensuales',
+    active: 'mas',
+    mens,
+    obras,
+    todas_obras: todasObras,
+    emps,
+    hoy_mes: hoyMes,
+    mes_ant: mesAnt,
+    mes_sig: mesSig,
+    filtro_obra: filtroObra,
+    filtro_mes: filtroMes,
+    filtro_estado: filtroEstado,
+    stats,
+    hhmm,
+  });
 });
 
 router.post('/nuevo', (req, res) => {

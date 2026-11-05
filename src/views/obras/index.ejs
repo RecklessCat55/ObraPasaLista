@@ -20,7 +20,8 @@
   <tr>
     <td class="font-monospace fw-bold"><%= o.codigo %></td>
     <td>
-      <%= o.nombre %>
+      <strong><%= o.nombre %></strong>
+      <% if (o.descripcion) { %><div class="text-muted small text-truncate" style="max-width:350px"><%= o.descripcion %></div><% } %>
       <% if (o.deleted_at) { %><span class="badge bg-danger ms-1" style="font-size:.65rem">eliminada</span><% } %>
     </td>
     <td><span class="badge badge-<%= o.estado %>"><%= o.estado %></span></td>

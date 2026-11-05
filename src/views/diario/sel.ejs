@@ -1,28 +1,139 @@
-<h2 class="h4 mb-3"><i class="bi bi-calendar-day"></i> Parte diario</h2>
-<div class="row g-3">
-<div class="col-md-4">
-  <div class="card"><div class="card-body">
-    <form action="/diario/ir" method="get">
-      <div class="mb-3"><label class="form-label">Obra</label>
-        <select name="id_obra" class="form-select" required>
-          <option value="">— Selecciona —</option>
-          <% obras.forEach(function(o) { %><option value="<%= o.id_obra %>"><%= o.codigo %> — <%= o.nombre %></option><% }); %>
-        </select></div>
-      <div class="mb-3"><label class="form-label">Fecha</label>
-        <input type="date" name="fecha" class="form-control" value="<%= hoy %>" required></div>
-      <button type="submit" class="btn btn-opl w-100">Abrir parte</button>
-    </form>
-  </div></div>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="h4 mb-0"><i class="bi bi-calendar-day text-warning"></i> Partes diarios de obra</h2>
 </div>
-<div class="col-md-8">
-  <div class="sec">Acceso rápido — hoy (<%= hoy %>)</div>
-  <div class="row g-2">
-    <% obras.forEach(function(o) { %>
-    <div class="col-6 col-xl-4">
-      <a href="/diario/<%= o.id_obra %>/<%= hoy %>" class="btn btn-outline-secondary btn-sm w-100 text-start py-2">
-        <strong><%= o.nombre %></strong><br><small class="text-muted"><%= o.codigo %></small>
-      </a>
+
+<div class="row g-3 mb-4">
+  <div class="col-lg-4 col-md-5">
+    <div class="card h-100 shadow-sm">
+      <div class="card-header bg-dark fw-bold">
+        <i class="bi bi-search"></i> Abrir o crear parte
+      </div>
+      <div class="card-body">
+        <form action="/diario/ir" method="get" id="form-sel-diario">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Obra *</label>
+            <select name="id_obra" id="sel-obra" class="form-select form-select-sm" required autofocus>
+              <option value="">— Selecciona una obra —</option>
+              <% obras.forEach(function(o) { %>
+                <option value="<%= o.id_obra %>"><%= o.codigo %> — <%= o.nombre %></option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Fecha *</label>
+            <input type="date" name="fecha" id="inp-fecha" class="form-control form-control-sm" value="<%= hoy %>" required>
+            <div class="d-flex gap-1 mt-2">
+              <button type="button" class="btn btn-outline-secondary btn-sm flex-fill py-0" style="font-size:0.75rem" onclick="setFecha('<%= ayer %>')">Ayer</button>
+              <button type="button" class="btn btn-outline-primary btn-sm flex-fill py-0 active" style="font-size:0.75rem" onclick="setFecha('<%= hoy %>')">Hoy</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm flex-fill py-0" style="font-size:0.75rem" onclick="setFecha('<%= manana %>')">Mañana</button>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-opl btn-sm w-100 fw-bold">
+            <i class="bi bi-box-arrow-in-right"></i> Abrir parte diario
+          </button>
+        </form>
+      </div>
     </div>
-    <% }); %>
   </div>
-</div></div>
+
+  <div class="col-lg-8 col-md-7">
+    <div class="card h-100 shadow-sm">
+      <div class="card-header bg-dark fw-bold d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-lightning-charge-fill text-warning"></i> Acceso rápido — Hoy (<%= hoy %>)</span>
+        <span class="badge bg-secondary"><%= obras.length %> obras activas</span>
+      </div>
+      <div class="card-body">
+        <% if (obras.length === 0) { %>
+          <p class="text-muted small mb-0">No hay obras activas configuradas.</p>
+        <% } else { %>
+          <div class="row g-2">
+            <% obras.forEach(function(o) { %>
+              <div class="col-sm-6 col-xl-4">
+                <a href="/diario/<%= o.id_obra %>/<%= hoy %>" class="btn btn-outline-secondary btn-sm w-100 text-start p-2 h-100 d-flex flex-column justify-content-between">
+                  <div>
+                    <strong class="text-light text-truncate d-block"><%= o.nombre %></strong>
+                    <small class="text-muted font-monospace"><%= o.codigo %></small>
+                  </div>
+                  <% if (o.descripcion) { %>
+                    <small class="text-secondary text-truncate d-block mt-1" style="font-size:0.72rem"><%= o.descripcion %></small>
+                  <% } %>
+                </a>
+              </div>
+            <% }); %>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ÚLTIMOS PARTES REGISTRADOS -->
+<div class="card shadow-sm">
+  <div class="card-header bg-dark d-flex justify-content-between align-items-center">
+    <span class="fw-bold"><i class="bi bi-clock-history"></i> Partes recientes registrados</span>
+    <small class="text-muted">Últimos movimientos en obra</small>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0 align-middle">
+        <thead class="table-dark">
+          <tr>
+            <th>Fecha</th>
+            <th>Obra</th>
+            <th>Meteo</th>
+            <th class="text-center">Personal</th>
+            <th class="text-center">Total Horas</th>
+            <th>Notas del día</th>
+            <th class="text-end">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (!ultimos_diarios || ultimos_diarios.length === 0) { %>
+            <tr><td colspan="7" class="text-center py-4 text-muted">Aún no se han registrado partes diarios.</td></tr>
+          <% } else { %>
+            <% ultimos_diarios.forEach(function(u) { %>
+              <tr>
+                <td class="font-monospace fw-bold"><%= u.fecha %></td>
+                <td>
+                  <strong><%= u.nom_obra %></strong>
+                  <span class="badge bg-secondary ms-1 font-monospace" style="font-size:0.65rem"><%= u.cod_obra %></span>
+                </td>
+                <td class="small">
+                  <span><%= m_ico[u.meteo_estado] || '☀️' %></span>
+                  <% if (u.meteo_temp_c !== null) { %> <span class="text-muted"><%= u.meteo_temp_c %>°C</span><% } %>
+                </td>
+                <td class="text-center">
+                  <span class="badge bg-dark border border-secondary"><%= u.num_personas %> pers.</span>
+                </td>
+                <td class="text-center">
+                  <span class="badge bg-primary font-monospace"><%= hhmm(u.total_horas) %></span>
+                </td>
+                <td class="small text-truncate" style="max-width:240px">
+                  <% if (u.notas) { %>
+                    <span class="text-light" title="<%= u.notas %>"><i class="bi bi-chat-left-text text-warning"></i> <%= u.notas %></span>
+                  <% } else { %>
+                    <span class="text-muted fst-italic">—</span>
+                  <% } %>
+                </td>
+                <td class="text-end text-nowrap">
+                  <a href="/diario/<%= u.id_obra %>/<%= u.fecha %>" class="btn btn-sm btn-outline-primary py-0 px-2" title="Ver parte">
+                    <i class="bi bi-eye"></i> Ver
+                  </a>
+                  <a href="/diario/<%= u.id_diario %>/movil" class="btn btn-sm btn-outline-info py-0 px-2" title="Modo táctil / móvil">
+                    <i class="bi bi-phone"></i>
+                  </a>
+                </td>
+              </tr>
+            <% }); %>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+function setFecha(f) {
+  document.getElementById('inp-fecha').value = f;
+}
+</script>

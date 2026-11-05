@@ -24,6 +24,7 @@ const {
   MIGRATION_V12,
   MIGRATION_V13,
   MIGRATION_V14,
+  MIGRATION_V15,
   seedRangos,
   aplicarMigracion,
 } = require('../src/db');
@@ -35,6 +36,7 @@ db.exec(SCHEMA);
 aplicarMigracion(db, MIGRATION_V12, 'v1.2 (test)');
 aplicarMigracion(db, MIGRATION_V13, 'v1.3 (test)');
 aplicarMigracion(db, MIGRATION_V14, 'v1.4 (test)');
+aplicarMigracion(db, MIGRATION_V15, 'v1.5 (test)');
 db.prepare('INSERT OR IGNORE INTO config(id_config,limite_horas_dia,umbral_desajuste_meta) VALUES(1,24.0,2.0)').run();
 seedRangos(db);
 
@@ -378,6 +380,77 @@ test('Anonimización RGPD limpia también los datos en mensual_persona', () => {
   assert.strictEqual(mp.ap1_c, 'ANON');
   assert.strictEqual(mp.dni_c, 'ANON');
   assert.strictEqual(mp.total_mes, 6, 'Conserva el total de horas contable');
+});
+
+
+// ======================== 11. NUEVAS FUNCIONALIDADES (v1.5) ========================
+console.log('\n11. Nuevas funcionalidades v1.5');
+
+test('Columna descripcion existe en obra y notas en diario', () => {
+  const oCol = db.prepare("SELECT descripcion FROM obra LIMIT 1").all();
+  assert(oCol !== undefined, 'Columna descripcion debe existir en obra');
+  const dCol = db.prepare("SELECT notas FROM diario LIMIT 1").all();
+  assert(dCol !== undefined, 'Columna notas debe existir en diario');
+});
+
+test('Cálculo de costes aplica ascenso/cambio de rango a partir de la fecha de efecto', () => {
+  const { informeCostes } = require('../src/services/negocio');
+  // 1. Crear empresa y obra de prueba para costes
+  const idEmp = db.prepare("INSERT INTO empresa(nombre) VALUES('Constructora Ascensos S.L.')").run().lastInsertRowid;
+  const idOb = db.prepare("INSERT INTO obra(codigo,nombre,descripcion) VALUES('ASC-01','Edificio Ascenso','Edificio residencial de 10 plantas')").run().lastInsertRowid;
+  db.prepare("INSERT INTO obra_empresa(id_obra,id_empresa) VALUES(?,?)").run(idOb, idEmp);
+
+  // 2. Crear dos rangos con tarifas diferentes
+  const idPeon = db.prepare("SELECT id_rango FROM rango WHERE codigo='PEON'").get().id_rango;
+  const idOf1 = db.prepare("SELECT id_rango FROM rango WHERE codigo='OF1'").get().id_rango;
+  
+  db.prepare("INSERT OR REPLACE INTO tarifa_rango(id_rango,precio_hora) VALUES(?,10.0)").run(idPeon); // 10€/h
+  db.prepare("INSERT OR REPLACE INTO tarifa_rango(id_rango,precio_hora) VALUES(?,20.0)").run(idOf1);  // 20€/h
+
+  // 3. Crear trabajador y asignarle rango Peón desde el 1 de octubre
+  const idPer = db.prepare(
+    "INSERT INTO persona(nombre,apellido1,dni,id_empresa) VALUES('Carlos','Ascendido','11223344A',?)"
+  ).run(idEmp).lastInsertRowid;
+
+  db.prepare("INSERT INTO persona_rango(id_persona,id_rango,fecha_inicio,fecha_fin) VALUES(?,?,'2026-10-01','2026-10-14')").run(idPer, idPeon);
+  // Ascenso a Oficial 1ª el 15 de octubre
+  db.prepare("INSERT INTO persona_rango(id_persona,id_rango,fecha_inicio,fecha_fin) VALUES(?,?,'2026-10-15',NULL)").run(idPer, idOf1);
+
+  // 4. Crear partes diarios: 8h el día 5 (como Peón) y 8h el día 20 (como Oficial 1ª)
+  const d1 = db.prepare("INSERT INTO diario(id_obra,fecha,notas) VALUES(?,'2026-10-05','Día normal de hormigonado')").run(idOb).lastInsertRowid;
+  db.prepare("INSERT INTO diario_linea(id_diario,id_empresa,id_persona,id_rango,horas) VALUES(?,?,?,?,8)").run(d1, idEmp, idPer, idPeon);
+
+  const d2 = db.prepare("INSERT INTO diario(id_obra,fecha,notas) VALUES(?,'2026-10-20','Primera jornada tras ascenso')").run(idOb).lastInsertRowid;
+  db.prepare("INSERT INTO diario_linea(id_diario,id_empresa,id_persona,id_rango,horas) VALUES(?,?,?,?,8)").run(d2, idEmp, idPer, idOf1);
+
+  // 5. Calcular informe de costes para 2026-10
+  const rCostes = informeCostes(db, idOb, '2026-10');
+  
+  assert.strictEqual(rCostes.totalHoras, 16, 'Total horas debe ser 16h');
+  // Coste esperado: (8h * 10€) + (8h * 20€) = 80€ + 160€ = 240€
+  assert.strictEqual(rCostes.totalCoste, 240, `Total coste debe ser 240€ exactamente, obtenido ${rCostes.totalCoste}€`);
+
+  // Verificar coste por día en diasTabla
+  const dia5 = rCostes.diasTabla.find(d => d.dia === 5);
+  const dia20 = rCostes.diasTabla.find(d => d.dia === 20);
+  assert.strictEqual(dia5.coste, 80, `Día 5 (Peón 10€/h) debe costar 80€, obtenido ${dia5.coste}€`);
+  assert.strictEqual(dia20.coste, 160, `Día 20 (Oficial 20€/h) debe costar 160€, obtenido ${dia20.coste}€`);
+});
+
+test('Notas circunstanciales en diario persisten correctamente', () => {
+  const d = db.prepare("SELECT * FROM diario WHERE notas LIKE '%hormigonado%'").get();
+  assert(d, 'Debe existir diario con notas');
+  assert.strictEqual(d.notas, 'Día normal de hormigonado');
+
+  db.prepare("UPDATE diario SET notas='Lluvia torrencial, se para la obra a las 14:00' WHERE id_diario=?").run(d.id_diario);
+  const dUpdated = db.prepare("SELECT notas FROM diario WHERE id_diario=?").get(d.id_diario);
+  assert.strictEqual(dUpdated.notas, 'Lluvia torrencial, se para la obra a las 14:00');
+});
+
+test('Obra guarda y recupera la descripción', () => {
+  const o = db.prepare("SELECT * FROM obra WHERE codigo='ASC-01'").get();
+  assert(o, 'Obra debe existir');
+  assert.strictEqual(o.descripcion, 'Edificio residencial de 10 plantas');
 });
 
 // ======================== RESUMEN ========================

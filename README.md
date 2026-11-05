@@ -2,20 +2,23 @@
 
 **Control de presencia, CAE/PRL y gestión de personal en obra civil**, aplicación web local y offline diseñada específicamente para jefes de obra, encargados y administrativos que necesitan registrar asistencia, controlar documentación preventiva y generar informes de costes sin depender de conexión a internet.
 
-> Versión actual: **v1.4.0** · Arquitectura Node.js/Express sobre SQLite (puerto robusto del legacy Python/Flask)
+> Versión actual: **v1.5.0** · Arquitectura Node.js/Express sobre SQLite (puerto robusto del legacy Python/Flask)
 
 ---
 
 ## ✨ Funcionalidades principales
 
-- **📅 Parte diario y asignación masiva** — Fichaje por jornada con soporte para vista de escritorio y vista optimizada para dispositivos móviles en pie de obra. Asignación masiva en un solo clic.
+- **📅 Parte diario y asignación masiva optimizada** — Fichaje por jornada con navegación rápida entre días (anterior/siguiente), selector de fecha integrado, listado de partes recientes y asignación masiva idempotente con buscador en tiempo real y selección global.
 - **⚡ Arrastre temporal inteligente** — Duplicación rápida de cuadrillas desde el último día laborable real, saltando automáticamente fines de semana y festivos autonómicos o locales configurables.
 - **🛡️ Coordinación de Actividades Empresariales (CAE / PRL)** — Control de documentación preventiva obligatoria (TC2, seguros de RC, reconocimientos médicos, formación PRL) con semáforo de estados (válido, por caducar, caducado).
 - **🔒 Protección de meses cerrados** — Guardas de seguridad a nivel de servicio y base de datos que impiden crear, modificar o eliminar imputaciones en meses ya cerrados contablemente.
 - **🗑️ Borrado suave (Soft Deletes)** — Protección total de integridad histórica en `persona`, `empresa` y `obra` mediante la columna `deleted_at`. Los registros eliminados no rompen diarios ni partes pasados y pueden auditarse opcionalmente en los informes.
 - **🎯 Metas de horas y tarifas** — Jerarquía de metas de jornada (`persona` > `empresa` > `obra` > 8h defecto), detección de desajustes y cálculo dinámico de costes por hora según rango laboral.
 - **💾 Copias de seguridad automáticas** — Generación de snapshots SQLite con verificación estricta de integridad (`PRAGMA integrity_check`) y política de rotación histórica configurable.
-- **📁 Documentación de obra** — Estructura jerárquica de carpetas y archivos asociada a partidas y fases de obra.
+- **📁 Documentación de obra multi-archivo** — Estructura jerárquica de carpetas con soporte para subida simultánea de múltiples archivos (planos, imágenes, memorias, certificados).
+- **📝 Notas circunstanciales en el diario** — Registro libre de incidencias y circunstancias diarias (averías, visitas de arquitecto, meteorología, retrasos de material).
+- **🏷️ Descripción detallada de obra** — Campo de descripción en la ficha de obra visible en listados y partes.
+- **💰 Cómputo de costes con ascensos por fecha** — Cálculo exacto día a día de costes laborales considerando la fecha de efecto en cambios de rango profesional y ascensos.
 - **📶 100% Offline** — Bootstrap 5.3.2 y Bootstrap Icons 1.11.3 servidos en local desde el propio servidor.
 
 ---
@@ -152,10 +155,10 @@ npm test
 ```
 
 ### Qué cubre la suite de pruebas:
-1. **Esquema completo y migraciones**: Valida la creación e idempotencia de `MIGRATION_V11`, `MIGRATION_V12`, `MIGRATION_V13` y `MIGRATION_V14`.
+1. **Esquema completo y migraciones**: Valida la creación e idempotencia de migraciones acumulativas hasta `v1.5` (`MIGRATION_V15`: descripción en obra y notas en diario).
 2. **Servicios de horas**: Verificación de límites de 24h, coherencia de cómputo y bloqueo de meses cerrados.
 3. **Arrastre inteligente**: Comprobación de que salta sábados, domingos y festivos configurados en `config_festivo`.
-4. **Lógica de negocio**: Resolución de metas efectivas (`persona` > `empresa` > `obra`), detección de desajustes y costes.
+4. **Lógica de negocio y costes**: Resolución de metas efectivas, cálculo exacto de costes por día considerando fecha de efecto de ascensos, asignación masiva idempotente y persistencia de notas circunstanciales.
 5. **Auditoría e integridad**: Registro de eventos administrativos y verificación de integridad SQLite.
 6. **Soft Deletes**: Comprueba que la eliminación lógica conserva registros históricos en diarios y mensuales sin violar claves foráneas.
 

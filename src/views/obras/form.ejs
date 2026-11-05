@@ -18,6 +18,10 @@
       <div class="col-8"><label class="form-label small">Nombre *</label>
         <input type="text" name="nombre" class="form-control form-control-sm" value="<%= ob ? ob.nombre : '' %>" required autofocus></div>
     </div>
+    <div class="mb-2">
+      <label class="form-label small">Descripción <span class="text-muted">(opc.)</span></label>
+      <textarea name="descripcion" class="form-control form-control-sm" rows="3" placeholder="Ubicación, detalles del proyecto, observaciones..."><%= ob ? (ob.descripcion || '') : '' %></textarea>
+    </div>
     <% if (ob) { %>
     <div class="mb-3"><label class="form-label small">Meta de horas/día <span class="text-muted">(opc.)</span></label>
       <input type="number" name="meta_horas_dia" class="form-control form-control-sm" step="0.25" min="0.25"

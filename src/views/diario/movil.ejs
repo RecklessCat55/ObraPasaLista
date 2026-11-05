@@ -21,6 +21,35 @@
     </div>
   </div>
 
+
+  <!-- NOTAS DEL DÍA EN MÓVIL -->
+  <div class="card mb-3 border-secondary-subtle">
+    <div class="card-header bg-dark p-2 d-flex justify-content-between align-items-center">
+      <span class="small fw-bold text-white">
+        <i class="bi bi-journal-text text-warning"></i> Notas circunstanciales
+        <% if (d.notas) { %><span class="badge bg-success ms-1" style="font-size:0.6rem">OK</span><% } %>
+      </span>
+      <button class="btn btn-sm btn-outline-secondary py-0 px-2" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-notas-movil">
+        <i class="bi bi-pencil"></i>
+      </button>
+    </div>
+    <div class="card-body p-2">
+      <% if (d.notas) { %>
+        <p class="small text-light mb-0" style="white-space: pre-wrap;"><%= d.notas %></p>
+      <% } else { %>
+        <p class="small text-muted mb-0 fst-italic">Sin notas registradas.</p>
+      <% } %>
+    </div>
+    <div class="collapse" id="collapse-notas-movil">
+      <div class="card-footer bg-dark p-2 border-top border-secondary-subtle">
+        <form method="post" action="/diario/<%= d.id_diario %>/notas">
+          <textarea name="notas" class="form-control form-control-sm mb-2" rows="2" placeholder="Incidencias, visitas, circunstancias..."><%= d.notas || '' %></textarea>
+          <button type="submit" class="btn btn-opl btn-sm w-100 py-1">Guardar nota</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- BARRA DE BÚSQUEDA Y PARTIDA POR DEFECTO -->
   <div class="card mb-3">
     <div class="card-body p-2">

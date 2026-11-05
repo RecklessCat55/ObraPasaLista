@@ -41,13 +41,20 @@
         <option value="activa"   <%= per.estado==='activa' ? 'selected' : '' %>>Activa</option>
         <option value="inactiva" <%= per.estado==='inactiva' ? 'selected' : '' %>>Inactiva</option>
       </select></div>
-    <div class="col-6"><label class="form-label small">Nuevo rango (historial)</label>
-      <select name="id_rango_nuevo" class="form-select form-select-sm">
-        <option value="">— Sin cambio —</option>
+    <div class="col-6"><label class="form-label small">Nuevo rango / Ascenso (historial)</label>
+      <select name="id_rango_nuevo" id="sel-nuevo-rango" class="form-select form-select-sm">
+        <option value="">— Sin cambio (conservar actual) —</option>
         <% rangos.forEach(function(r) { %>
-        <option value="<%= r.id_rango %>" <%= (ra && r.id_rango===ra.id_rango) ? 'selected' : '' %>><%= r.codigo %> — <%= r.nombre %></option>
+        <option value="<%= r.id_rango %>"><%= r.codigo %> — <%= r.nombre %></option>
         <% }); %>
       </select></div>
+    <div class="col-12" id="grp-fecha-rango" style="display:none">
+      <div class="alert alert-secondary py-1 px-2 mb-0 small">
+        <label class="form-label mb-1 fw-bold">Fecha de efecto del nuevo rango *</label>
+        <input type="date" name="fecha_rango_nuevo" class="form-control form-control-sm" value="<%= typeof hoy !== 'undefined' ? hoy : '' %>">
+        <small class="text-muted">A partir de este día se computará la nueva tarifa en los informes de costes.</small>
+      </div>
+    </div>
   </div>
   <% if (hist.length) { %>
   <div class="mb-3">
@@ -72,3 +79,10 @@
     <a href="/personas/" class="btn btn-secondary btn-sm">Cancelar</a>
   </div>
 </form></div></div></div></div>
+
+<script>
+document.getElementById('sel-nuevo-rango')?.addEventListener('change', function() {
+  const g = document.getElementById('grp-fecha-rango');
+  if (g) g.style.display = this.value ? 'block' : 'none';
+});
+</script>

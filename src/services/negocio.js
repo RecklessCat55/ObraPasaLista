@@ -207,39 +207,66 @@ function informeCostes(db, idObra, mesStr) {
   const dcols = Array.from({ length: 31 }, (_, i) => `mp.d${i + 1}`).join(',');
   const cerradosRows = db
     .prepare(
-      `SELECT mp.id_persona, mp.nom_c, mp.ap1_c, mp.ap2_c, mp.empresa_cache, mp.total_mes, ${dcols}
+      `SELECT mp.id_persona, mp.nom_c, mp.ap1_c, mp.ap2_c, mp.dni_c, mp.rango_cache, mp.empresa_cache,
+              mp.es_subcontrata, mp.total_mes, ${dcols}
        FROM mensual_persona mp JOIN mensual m ON mp.id_mensual=m.id_mensual
        WHERE m.id_obra=? AND m.mes=? AND m.estado='cerrado'`
     )
     .all(idObra, mesStr);
+
   for (const r of cerradosRows) {
-    const precio = precioEfectivoPersona(db, r.id_persona) || 0;
-    const horas = r.total_mes || 0;
-    filas.push({
-      nombre: `${r.ap1_c} ${r.ap2_c}, ${r.nom_c}`,
-      empresa: r.empresa_cache,
-      horas,
-      precio_hora: precio,
-      coste: horas * precio,
-    });
+    let costePersona = 0.0;
+    let horasPersona = 0.0;
+    let ultimoPrecio = 0;
+
     for (let i = 1; i <= days; i++) {
       const h = r[`d${i}`];
       if (h) {
+        const fechaDia = `${mesStr}-${String(i).padStart(2, '0')}`;
+        const precioDia = precioEfectivoPersona(db, r.id_persona, fechaDia) || 0;
+        ultimoPrecio = precioDia;
         horasDia[i] += h;
-        costeDia[i] += h * precio;
+        costeDia[i] += h * precioDia;
+        costePersona += h * precioDia;
+        horasPersona += h;
       }
     }
+
+    if (horasPersona === 0) {
+      ultimoPrecio = precioEfectivoPersona(db, r.id_persona, `${mesStr}-${String(days).padStart(2, '0')}`) || 0;
+    }
+
+    filas.push({
+      id_persona: r.id_persona,
+      nombre: `${r.ap1_c} ${r.ap2_c}, ${r.nom_c}`.trim(),
+      empresa: r.empresa_cache,
+      nom_e: r.empresa_cache,
+      ap1: r.ap1_c,
+      ap2: r.ap2_c,
+      nom_p: r.nom_c,
+      dni: r.dni_c,
+      nom_r: r.rango_cache,
+      es_sub: r.es_subcontrata === 1,
+      horas: r.total_mes || horasPersona,
+      precio_hora: ultimoPrecio,
+      tarifa: ultimoPrecio,
+      coste: costePersona,
+    });
   }
 
   // -- empresas con mensual abierto (o sin mensual): directamente del diario --
-  // Excluimos por pareja (id_persona, id_empresa) ya congelada en cualquier snapshot cerrado de esa obra/mes
-  // para evitar duplicar horas de trabajadores de subcontratas congelados en el mensual principal.
-  const q = `SELECT dl.id_persona, dl.id_empresa, p.nombre nom, p.apellido1 ap1, p.apellido2 ap2, e.nombre emp,
-                    CAST(strftime('%d', d.fecha) AS INTEGER) ndia, COALESCE(SUM(dl.horas), 0) horas
+  // Calculamos el coste día a día evaluando el rango/tarifa vigente en cada fecha específica
+  const q = `SELECT dl.id_persona, dl.id_empresa, dl.id_rango,
+                    p.nombre nom, p.apellido1 ap1, p.apellido2 ap2, p.dni,
+                    e.nombre emp, r.nombre nom_r,
+                    CAST(strftime('%d', d.fecha) AS INTEGER) ndia,
+                    d.fecha,
+                    COALESCE(SUM(dl.horas), 0) horas
              FROM diario_linea dl
              JOIN diario  d ON dl.id_diario=d.id_diario
              JOIN persona p ON dl.id_persona=p.id_persona
              JOIN empresa e ON dl.id_empresa=e.id_empresa
+             LEFT JOIN rango r ON dl.id_rango=r.id_rango
              WHERE d.id_obra=? AND strftime('%Y-%m', d.fecha)=?
                AND NOT EXISTS (
                  SELECT 1 FROM mensual_persona mp
@@ -247,7 +274,8 @@ function informeCostes(db, idObra, mesStr) {
                  WHERE m2.id_obra = ? AND m2.mes = ? AND m2.estado = 'cerrado'
                    AND mp.id_persona = dl.id_persona AND mp.id_empresa = dl.id_empresa
                )
-             GROUP BY dl.id_persona, dl.id_empresa, ndia`;
+             GROUP BY dl.id_persona, dl.id_empresa, dl.id_rango, d.fecha
+             ORDER BY e.nombre, p.apellido1, p.nombre, d.fecha`;
   const params = [idObra, mesStr, idObra, mesStr];
 
   const agg = new Map();
@@ -255,19 +283,39 @@ function informeCostes(db, idObra, mesStr) {
     const k = `${r.id_persona}|${r.id_empresa}`;
     if (!agg.has(k)) {
       agg.set(k, {
-        nombre: `${r.ap1} ${r.ap2}, ${r.nom}`,
+        id_persona: r.id_persona,
+        id_empresa: r.id_empresa,
+        nombre: `${r.ap1} ${r.ap2}, ${r.nom}`.trim(),
         empresa: r.emp,
+        nom_e: r.emp,
+        ap1: r.ap1,
+        ap2: r.ap2,
+        nom_p: r.nom,
+        dni: r.dni,
+        nom_r: r.nom_r,
         horas: 0.0,
-        precio_hora: precioEfectivoPersona(db, r.id_persona) || 0,
+        coste: 0.0,
+        precio_hora: 0,
+        tarifa: 0,
       });
     }
     const v = agg.get(k);
+
+    // Precio vigente exactamente en la fecha del diario (aplica ascensos desde ese día)
+    const precioDia = precioEfectivoPersona(db, r.id_persona, r.fecha) || 0;
+    const costeDiaCalculado = r.horas * precioDia;
+
     v.horas += r.horas;
+    v.coste += costeDiaCalculado;
+    v.precio_hora = precioDia; // último precio vigente aplicado
+    v.tarifa = precioDia;
+    if (r.nom_r) v.nom_r = r.nom_r;
+
     horasDia[r.ndia] += r.horas;
-    costeDia[r.ndia] += r.horas * v.precio_hora;
+    costeDia[r.ndia] += costeDiaCalculado;
   }
+
   for (const v of agg.values()) {
-    v.coste = v.horas * v.precio_hora;
     filas.push(v);
   }
 

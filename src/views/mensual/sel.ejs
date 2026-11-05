@@ -1,47 +1,152 @@
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h2 class="h4 mb-0"><i class="bi bi-calendar-month"></i> Mensuales</h2>
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div>
+    <h2 class="h4 mb-0"><i class="bi bi-calendar-month text-warning"></i> Control y Cierre Mensual</h2>
+    <small class="text-muted">Partes mensuales consolidados de personal por obra y empresa</small>
+  </div>
+  <div class="d-flex gap-2">
+    <span class="badge badge-abierto px-2 py-1"><i class="bi bi-unlock-fill"></i> <%= stats.abiertos %> Abiertos</span>
+    <span class="badge badge-cerrado px-2 py-1"><i class="bi bi-lock-fill"></i> <%= stats.cerrados %> Cerrados</span>
+  </div>
 </div>
+
 <div class="row g-3">
-<div class="col-md-4">
-  <div class="card"><div class="card-header">Nuevo / abrir mensual</div><div class="card-body">
-  <form method="post" action="/mensual/nuevo">
-    <div class="mb-2"><label class="form-label small">Obra *</label>
-      <select name="id_obra" class="form-select form-select-sm" required>
-        <option value="">— Selecciona —</option>
-        <% obras.forEach(function(o) { %><option value="<%= o.id_obra %>"><%= o.codigo %> — <%= o.nombre %></option><% }); %>
-      </select></div>
-    <div class="mb-2"><label class="form-label small">Empresa principal *</label>
-      <select name="id_empresa" class="form-select form-select-sm" required>
-        <option value="">— Selecciona —</option>
-        <% emps.forEach(function(e) { %><option value="<%= e.id_empresa %>"><%= e.nombre %></option><% }); %>
-      </select></div>
-    <div class="mb-3"><label class="form-label small">Mes *</label>
-      <input type="month" name="mes" class="form-control form-control-sm" value="<%= hoy_mes %>" required></div>
-    <button type="submit" class="btn btn-opl btn-sm w-100">Crear / Abrir</button>
-  </form></div></div>
+  <!-- FORMULARIO CREAR / ABRIR MENSUAL -->
+  <div class="col-lg-4 col-md-5">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-dark fw-bold">
+        <i class="bi bi-plus-circle"></i> Nuevo / Abrir mensual
+      </div>
+      <div class="card-body">
+        <form method="post" action="/mensual/nuevo">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Obra *</label>
+            <select name="id_obra" class="form-select form-select-sm" required autofocus>
+              <option value="">— Selecciona obra —</option>
+              <% obras.forEach(function(o) { %>
+                <option value="<%= o.id_obra %>"><%= o.codigo %> — <%= o.nombre %></option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Empresa principal *</label>
+            <select name="id_empresa" class="form-select form-select-sm" required>
+              <option value="">— Selecciona empresa —</option>
+              <% emps.forEach(function(e) { %>
+                <option value="<%= e.id_empresa %>"><%= e.nombre %></option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Mes de liquidación *</label>
+            <input type="month" name="mes" id="inp-mes-crear" class="form-control form-control-sm" value="<%= hoy_mes %>" required>
+            <div class="d-flex gap-1 mt-2">
+              <button type="button" class="btn btn-outline-secondary btn-sm flex-fill py-0" style="font-size:0.75rem" onclick="document.getElementById('inp-mes-crear').value='<%= mes_ant %>'">
+                <%= mes_ant %>
+              </button>
+              <button type="button" class="btn btn-outline-primary btn-sm flex-fill py-0 active" style="font-size:0.75rem" onclick="document.getElementById('inp-mes-crear').value='<%= hoy_mes %>'">
+                Actual (<%= hoy_mes %>)
+              </button>
+              <button type="button" class="btn btn-outline-secondary btn-sm flex-fill py-0" style="font-size:0.75rem" onclick="document.getElementById('inp-mes-crear').value='<%= mes_sig %>'">
+                <%= mes_sig %>
+              </button>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-opl btn-sm w-100 fw-bold">
+            <i class="bi bi-folder-check"></i> Abrir o crear mensual
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- LISTADO Y FILTRO DE MENSUALES -->
+  <div class="col-lg-8 col-md-7">
+    <div class="card shadow-sm mb-3">
+      <div class="card-body p-2 bg-dark rounded-top">
+        <form method="get" class="row g-2 align-items-center">
+          <div class="col-sm-4">
+            <select name="id_obra" class="form-select form-select-sm">
+              <option value="">Todas las obras</option>
+              <% (todas_obras || obras).forEach(function(o) { %>
+                <option value="<%= o.id_obra %>" <%= filtro_obra === o.id_obra ? 'selected' : '' %>><%= o.nombre %></option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="col-sm-3">
+            <input type="month" name="mes" class="form-control form-control-sm" value="<%= filtro_mes %>" placeholder="Cualquier mes">
+          </div>
+          <div class="col-sm-3">
+            <select name="estado" class="form-select form-select-sm">
+              <option value="">Todos los estados</option>
+              <option value="abierto" <%= filtro_estado === 'abierto' ? 'selected' : '' %>>Solo Abiertos</option>
+              <option value="cerrado" <%= filtro_estado === 'cerrado' ? 'selected' : '' %>>Solo Cerrados</option>
+            </select>
+          </div>
+          <div class="col-sm-2 d-flex gap-1">
+            <button type="submit" class="btn btn-sm btn-opl flex-fill py-1"><i class="bi bi-filter"></i></button>
+            <% if (filtro_obra || filtro_mes || filtro_estado) { %>
+              <a href="/mensual/" class="btn btn-sm btn-outline-secondary py-1" title="Limpiar filtros"><i class="bi bi-x"></i></a>
+            <% } %>
+          </div>
+        </form>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover table-sm mb-0 align-middle">
+            <thead class="table-dark">
+              <tr>
+                <th>Mes</th>
+                <th>Obra</th>
+                <th>Empresa</th>
+                <th class="text-center">Estado</th>
+                <th class="text-end">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (mens.length === 0) { %>
+                <tr>
+                  <td colspan="5" class="text-center py-4 text-muted">
+                    <i class="bi bi-inbox fs-4 d-block mb-1"></i> No se encontraron partes mensuales con los filtros seleccionados.
+                  </td>
+                </tr>
+              <% } %>
+              <% mens.forEach(function(m) { %>
+                <tr>
+                  <td class="font-monospace fw-bold text-nowrap">
+                    <i class="bi bi-calendar-event text-secondary me-1"></i> <%= m.mes %>
+                  </td>
+                  <td>
+                    <strong><%= m.nom_o %></strong>
+                    <span class="badge bg-secondary font-monospace ms-1" style="font-size:0.65rem"><%= m.cod_o %></span>
+                  </td>
+                  <td class="small"><%= m.nom_e %></td>
+                  <td class="text-center">
+                    <span class="badge badge-<%= m.estado %> text-capitalize">
+                      <i class="bi <%= m.estado === 'cerrado' ? 'bi-lock-fill' : 'bi-unlock-fill' %>"></i> <%= m.estado %>
+                    </span>
+                  </td>
+                  <td class="text-end text-nowrap">
+                    <a href="/mensual/<%= m.id_mensual %>" class="btn btn-sm btn-outline-primary py-0 px-2" title="Ver detalle">
+                      <i class="bi bi-eye"></i> Ver
+                    </a>
+                    <a href="/mensual/<%= m.id_mensual %>/excel" class="btn btn-sm btn-outline-success py-0 px-2" title="Exportar Excel">
+                      <i class="bi bi-file-earmark-excel"></i>
+                    </a>
+                    <a href="/mensual/<%= m.id_mensual %>/imprimir" class="btn btn-sm btn-outline-secondary py-0 px-2" title="Imprimir parte">
+                      <i class="bi bi-printer"></i>
+                    </a>
+                    <% if (m.estado === 'cerrado') { %>
+                      <a href="/mensual/<%= m.id_mensual %>/csv" class="btn btn-sm btn-outline-info py-0 px-2" title="Descargar CSV">
+                        <i class="bi bi-download"></i>
+                      </a>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
-<div class="col-md-8">
-  <div class="card"><div class="card-body p-0">
-  <table class="table table-hover mb-0 table-sm">
-    <thead><tr><th>Mes</th><th>Obra</th><th>Empresa</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead>
-    <tbody>
-    <% if (mens.length === 0) { %>
-    <tr><td colspan="5" class="text-center py-4 text-muted">Sin mensuales.</td></tr>
-    <% } %>
-    <% mens.forEach(function(m) { %>
-    <tr>
-      <td class="font-monospace fw-bold"><%= m.mes %></td>
-      <td><%= m.nom_o %><br><small class="text-muted"><%= m.cod_o %></small></td>
-      <td><%= m.nom_e %></td>
-      <td><span class="badge badge-<%= m.estado %>"><%= m.estado %></span></td>
-      <td class="text-end">
-        <a href="/mensual/<%= m.id_mensual %>" class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-eye"></i></a>
-        <% if (m.estado === 'cerrado') { %>
-        <a href="/mensual/<%= m.id_mensual %>/csv" class="btn btn-sm btn-outline-success py-0"><i class="bi bi-download"></i></a>
-        <% } %>
-      </td>
-    </tr>
-    <% }); %>
-    </tbody>
-  </table></div></div>
-</div></div>

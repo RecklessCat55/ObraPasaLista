@@ -50,24 +50,29 @@ async function runAllTests() {
   // Limpiar BD de pruebas para asegurar idempotencia
   const conn = db.getDb();
   db.initIfNeeded(conn);
+  conn.pragma('foreign_keys = OFF');
   const tables = [
     'log_auditoria',
     'documentacion_persona',
     'documentacion_empresa',
+    'archivo_obra',
+    'carpeta_obra',
     'mensual_persona',
     'mensual',
     'diario_linea',
     'diario',
     'obra_empresa',
-    'partida',
+    'partida_obra',
     'persona_rango',
     'persona',
     'obra',
     'empresa',
+    'tarifa_rango',
   ];
   for (const t of tables) {
     try { conn.prepare(`DELETE FROM ${t}`).run(); } catch (e) {}
   }
+  conn.pragma('foreign_keys = ON');
 
   const agent = request(app);
 
@@ -333,6 +338,132 @@ async function runAllTests() {
       assert.strictEqual(mp.ap1_c, 'ANON');
       assert.strictEqual(mp.dni_c, 'ANON');
     }
+  });
+
+
+  // 29-32: NUEVAS FUNCIONALIDADES v1.5
+  await testHttp('29. POST /obras/nueva y /editar guardan y actualizan descripcion', async () => {
+    const res = await agent
+      .post('/obras/nueva')
+      .type('form')
+      .send({
+        codigo: 'OB-DESC-01',
+        nombre: 'Obra con Descripcion',
+        descripcion: 'Construcción de nave industrial en polígono sur',
+      });
+    assert.strictEqual(res.status, 302);
+    const obra = db.getDb().prepare("SELECT * FROM obra WHERE codigo='OB-DESC-01'").get();
+    assert(obra, 'La obra debe haber sido creada');
+    assert.strictEqual(obra.descripcion, 'Construcción de nave industrial en polígono sur');
+
+    // Editar descripcion
+    const resEd = await agent
+      .post(`/obras/${obra.id_obra}/editar`)
+      .type('form')
+      .send({
+        codigo: 'OB-DESC-01',
+        nombre: 'Obra con Descripcion Editada',
+        descripcion: 'Fase 2 de la nave industrial',
+      });
+    assert.strictEqual(resEd.status, 302);
+    const obraEditada = db.getDb().prepare("SELECT * FROM obra WHERE id_obra=?").get(obra.id_obra);
+    assert.strictEqual(obraEditada.descripcion, 'Fase 2 de la nave industrial');
+  });
+
+  await testHttp('30. POST /diario/:id_d/notas guarda notas circunstanciales', async () => {
+    // Crear un diario para probar
+    const obra = db.getDb().prepare("SELECT id_obra FROM obra WHERE estado='activa' LIMIT 1").get();
+    const dRes = db.getDb().prepare("INSERT INTO diario(id_obra, fecha) VALUES(?, '2026-11-10')").run(obra.id_obra);
+    const idDiario = dRes.lastInsertRowid;
+
+    // Probar guardado vía AJAX
+    const resAjax = await agent
+      .post(`/diario/${idDiario}/notas`)
+      .set('Accept', 'application/json')
+      .send({ notas: 'Visita del inspector de seguridad a las 11:00. Sin incidencias.' });
+    assert.strictEqual(resAjax.status, 200);
+    assert.strictEqual(resAjax.body.success, true);
+    assert.strictEqual(resAjax.body.notas, 'Visita del inspector de seguridad a las 11:00. Sin incidencias.');
+
+    const dDb = db.getDb().prepare('SELECT notas FROM diario WHERE id_diario=?').get(idDiario);
+    assert.strictEqual(dDb.notas, 'Visita del inspector de seguridad a las 11:00. Sin incidencias.');
+  });
+
+  await testHttp('31. POST /diario/:id_diario/asignacion-masiva es idempotente y asigna/actualiza múltiples operarios', async () => {
+    const obra = db.getDb().prepare("SELECT id_obra FROM obra WHERE estado='activa' LIMIT 1").get();
+    const emp = db.getDb().prepare("SELECT id_empresa FROM empresa WHERE estado='activa' LIMIT 1").get();
+    
+    // Crear 2 operarios
+    const p1 = db.getDb().prepare("INSERT INTO persona(nombre, apellido1, dni, id_empresa) VALUES('Op1', 'Test', '77000001A', ?)").run(emp.id_empresa).lastInsertRowid;
+    const p2 = db.getDb().prepare("INSERT INTO persona(nombre, apellido1, dni, id_empresa) VALUES('Op2', 'Test', '77000002B', ?)").run(emp.id_empresa).lastInsertRowid;
+
+    const dRes = db.getDb().prepare("INSERT INTO diario(id_obra, fecha) VALUES(?, '2026-11-11')").run(obra.id_obra);
+    const idDiario = dRes.lastInsertRowid;
+
+    // Asignación masiva para ambos
+    const resMasiva1 = await agent
+      .post(`/diario/${idDiario}/asignacion-masiva`)
+      .type('form')
+      .send({
+        id_empresa: emp.id_empresa,
+        horas: '8',
+        asunto: 'Jornada completa masiva',
+        personas: [String(p1), String(p2)],
+      });
+    assert.strictEqual(resMasiva1.status, 302);
+
+    const lineas = db.getDb().prepare('SELECT * FROM diario_linea WHERE id_diario=?').all(idDiario);
+    assert.strictEqual(lineas.length, 2, 'Debe haber creado 2 líneas');
+    assert.strictEqual(lineas[0].horas, 8);
+    assert.strictEqual(lineas[1].horas, 8);
+
+    // Reasignación masiva (actualización a 4h sin error de duplicados)
+    const resMasiva2 = await agent
+      .post(`/diario/${idDiario}/asignacion-masiva`)
+      .type('form')
+      .send({
+        id_empresa: emp.id_empresa,
+        horas: '4',
+        asunto: 'Media jornada actualizada',
+        personas: [String(p1), String(p2)],
+      });
+    assert.strictEqual(resMasiva2.status, 302);
+
+    const lineasUpd = db.getDb().prepare('SELECT * FROM diario_linea WHERE id_diario=?').all(idDiario);
+    assert.strictEqual(lineasUpd.length, 2, 'Siguen existiendo 2 líneas (no duplicadas)');
+    assert.strictEqual(lineasUpd[0].horas, 4, 'Horas actualizadas a 4');
+    assert.strictEqual(lineasUpd[1].horas, 4, 'Horas actualizadas a 4');
+  });
+
+  await testHttp('32. POST /obra/:id_obra/documentacion/carpeta/:id_carpeta/subir acepta múltiples archivos a la vez', async () => {
+    const obra = db.getDb().prepare("SELECT id_obra FROM obra WHERE estado='activa' LIMIT 1").get();
+    
+    // Crear carpeta
+    const resCarp = await agent
+      .post(`/obra/${obra.id_obra}/documentacion/carpeta/nueva`)
+      .type('form')
+      .send({ nombre: 'Carpeta MultiArchivos' });
+    assert.strictEqual(resCarp.status, 302);
+
+    const carp = db.getDb().prepare('SELECT * FROM carpeta_obra WHERE id_obra=? AND nombre=?').get(obra.id_obra, 'Carpeta MultiArchivos');
+    assert(carp, 'La carpeta debe existir');
+
+    // Subir 2 archivos simultáneamente
+    const buf1 = Buffer.from('Contenido plano 1');
+    const buf2 = Buffer.from('Contenido memoria 2');
+
+    const resUpload = await agent
+      .post(`/obra/${obra.id_obra}/documentacion/carpeta/${carp.id_carpeta}/subir`)
+      .attach('archivos', buf1, 'plano_1.txt')
+      .attach('archivos', buf2, 'memoria_2.txt');
+
+    assert.strictEqual(resUpload.status, 302);
+
+    const archivos = db.getDb().prepare('SELECT * FROM archivo_obra WHERE id_carpeta=?').all(carp.id_carpeta);
+    assert.strictEqual(archivos.length, 2, 'Deben haberse guardado 2 archivos en la base de datos');
+    const nombres = archivos.map(a => a.nombre);
+    assert(nombres.includes('plano_1.txt'));
+    assert(nombres.includes('memoria_2.txt'));
   });
 
   console.log(`\n${'='.repeat(50)}`);

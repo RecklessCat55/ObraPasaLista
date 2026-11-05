@@ -32,6 +32,7 @@ router.post('/nueva', (req, res) => {
   const conn = db.getDb();
   const cod = (req.body.codigo || '').trim();
   const nom = (req.body.nombre || '').trim();
+  const desc = (req.body.descripcion || '').trim();
   const metaRaw = (req.body.meta_horas_dia || '').trim();
   let meta = null;
   if (metaRaw) {
@@ -49,12 +50,12 @@ router.post('/nueva', (req, res) => {
     try {
       const borrada = conn.prepare('SELECT id_obra FROM obra WHERE codigo=? AND deleted_at IS NOT NULL').get(cod);
       if (borrada) {
-        conn.prepare("UPDATE obra SET nombre=?, meta_horas_dia=?, estado='activa', deleted_at=NULL WHERE id_obra=?")
-          .run(nom, meta, borrada.id_obra);
+        conn.prepare("UPDATE obra SET nombre=?, meta_horas_dia=?, descripcion=?, estado='activa', deleted_at=NULL WHERE id_obra=?")
+          .run(nom, meta, desc, borrada.id_obra);
         req.flash(`Obra "${nom}" reactivada (ficha previa recuperada).`, 'success');
         return res.redirect('/obras/');
       } else {
-        conn.prepare('INSERT INTO obra(codigo,nombre,meta_horas_dia) VALUES(?,?,?)').run(cod, nom, meta);
+        conn.prepare('INSERT INTO obra(codigo,nombre,meta_horas_dia,descripcion) VALUES(?,?,?,?)').run(cod, nom, meta, desc);
         req.flash(`Obra "${nom}" creada.`, 'success');
         return res.redirect('/obras/');
       }
@@ -105,6 +106,7 @@ router.post('/:id/editar', (req, res) => {
   }
   const nom = (req.body.nombre || '').trim();
   const cod = (req.body.codigo || '').trim();
+  const desc = (req.body.descripcion || '').trim();
   const metaRaw = (req.body.meta_horas_dia || '').trim();
   try {
     let meta;
@@ -117,7 +119,7 @@ router.post('/:id/editar', (req, res) => {
       meta = metaRaw ? parseFloat(metaRaw) : null;
       if (metaRaw && Number.isNaN(meta)) throw new ValidationError('Meta de horas inválida.');
     }
-    conn.prepare('UPDATE obra SET nombre=?,codigo=?,meta_horas_dia=? WHERE id_obra=?').run(nom, cod, meta, id);
+    conn.prepare('UPDATE obra SET nombre=?,codigo=?,meta_horas_dia=?,descripcion=? WHERE id_obra=?').run(nom, cod, meta, desc, id);
     req.flash(`Obra "${nom}" actualizada.`, 'success');
     return res.redirect('/obras/');
   } catch (e) {

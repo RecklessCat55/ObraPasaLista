@@ -161,63 +161,77 @@ router.post('/:id_obra/documentacion/carpeta/nueva', (req, res) => {
 router.post('/:id_obra/documentacion/carpeta/:id_carpeta/subir', (req, res) => {
   const idObra = parseInt(req.params.id_obra, 10);
   const idCarpeta = parseInt(req.params.id_carpeta, 10);
-  upload.single('archivo')(req, res, (err) => {
+  upload.any()(req, res, (err) => {
     if (err) {
       const msg = err.code === 'LIMIT_FILE_SIZE'
-        ? 'El archivo supera el límite máximo permitido de 64 MB.'
-        : (err.message || 'Error al procesar el archivo subido.');
+        ? 'Uno o más archivos superan el límite máximo permitido de 64 MB.'
+        : (err.message || 'Error al procesar los archivos subidos.');
       req.flash(msg, 'error');
       return res.redirect(`/obra/${idObra}/documentacion`);
     }
     const conn = db.getDb();
-  try {
-    chkObraActiva(conn, idObra);
-    const carpeta = conn.prepare('SELECT * FROM carpeta_obra WHERE id_carpeta=? AND id_obra=?').get(idCarpeta, idObra);
-    if (!carpeta) throw new ValidationError('Carpeta no encontrada.');
-    const f = req.file;
-    if (!f || !f.originalname) throw new ValidationError('Selecciona un archivo.');
+    try {
+      chkObraActiva(conn, idObra);
+      const carpeta = conn.prepare('SELECT * FROM carpeta_obra WHERE id_carpeta=? AND id_obra=?').get(idCarpeta, idObra);
+      if (!carpeta) throw new ValidationError('Carpeta no encontrada.');
 
-    let nombreSeguro = secureFilename(f.originalname) || 'archivo';
-    const destinoDir = path.join(config.DOCS_DIR, carpeta.ruta_relativa);
-    fs.mkdirSync(destinoDir, { recursive: true });
-    const ext = path.extname(nombreSeguro);
-    const base = path.basename(nombreSeguro, ext);
-    let destinoAbs = path.join(destinoDir, nombreSeguro);
-    let i = 1;
-    while (fs.existsSync(destinoAbs)) {
-      nombreSeguro = `${base}_${i}${ext}`;
-      destinoAbs = path.join(destinoDir, nombreSeguro);
-      i += 1;
-    }
-    fs.writeFileSync(destinoAbs, f.buffer);
-    const rutaRel = path.join(carpeta.ruta_relativa, nombreSeguro);
-    const tipoMime = f.mimetype || guessMime(nombreSeguro);
-    const now = new Date();
-    const pad = (n) => String(n).padStart(2, '0');
-    const fechaSubida =
-      `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ` +
-      `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-    conn
-      .prepare(
+      const files = req.files || (req.file ? [req.file] : []);
+      if (!files.length) throw new ValidationError('Selecciona al menos un archivo para subir.');
+
+      const destinoDir = path.join(config.DOCS_DIR, carpeta.ruta_relativa);
+      fs.mkdirSync(destinoDir, { recursive: true });
+
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      const fechaSubida =
+        `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ` +
+        `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+      const stmt = conn.prepare(
         'INSERT INTO archivo_obra(id_carpeta,nombre,ruta_relativa,tipo_mime,fecha_subida,notas) VALUES(?,?,?,?,?,?)'
-      )
-      .run(
-        idCarpeta,
-        f.originalname,
-        rutaRel,
-        tipoMime,
-        fechaSubida,
-        (req.body.notas || '').trim()
       );
-    req.flash(`Archivo "${f.originalname}" subido.`, 'success');
-  } catch (e) {
-    if (e instanceof ValidationError) {
-      req.flash(e.message, 'error');
-    } else {
-      req.flash(`Error al subir el archivo: ${e.message}`, 'error');
+
+      const tx = conn.transaction((archivos) => {
+        for (const f of archivos) {
+          let nombreSeguro = secureFilename(f.originalname) || 'archivo';
+          const ext = path.extname(nombreSeguro);
+          const base = path.basename(nombreSeguro, ext);
+          let destinoAbs = path.join(destinoDir, nombreSeguro);
+          let i = 1;
+          while (fs.existsSync(destinoAbs)) {
+            nombreSeguro = `${base}_${i}${ext}`;
+            destinoAbs = path.join(destinoDir, nombreSeguro);
+            i += 1;
+          }
+          fs.writeFileSync(destinoAbs, f.buffer);
+          const rutaRel = path.join(carpeta.ruta_relativa, nombreSeguro);
+          const tipoMime = f.mimetype || guessMime(nombreSeguro);
+          stmt.run(
+            idCarpeta,
+            f.originalname,
+            rutaRel,
+            tipoMime,
+            fechaSubida,
+            (req.body.notas || '').trim()
+          );
+        }
+      });
+
+      tx(files);
+
+      if (files.length === 1) {
+        req.flash(`Archivo "${files[0].originalname}" subido correctamente.`, 'success');
+      } else {
+        req.flash(`${files.length} archivos subidos correctamente a la carpeta "${carpeta.nombre}".`, 'success');
+      }
+    } catch (e) {
+      if (e instanceof ValidationError) {
+        req.flash(e.message, 'error');
+      } else {
+        req.flash(`Error al subir archivos: ${e.message}`, 'error');
+      }
     }
-  }
-  res.redirect(`/obra/${idObra}/documentacion`);
+    res.redirect(`/obra/${idObra}/documentacion`);
   });
 });
 

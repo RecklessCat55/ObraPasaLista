@@ -171,14 +171,14 @@ function generarCostesExcel(obra, filas, mesStr, totalHoras, totalCoste) {
   for (const f of filas) {
     rowsXml += `
       <Row ss:Height="20">
-        <Cell ss:StyleID="Text"><Data ss:Type="String">${escapeXml(f.nom_e)}</Data></Cell>
+        <Cell ss:StyleID="Text"><Data ss:Type="String">${escapeXml(f.nom_e || f.empresa || '')}</Data></Cell>
         <Cell ss:StyleID="Center"><Data ss:Type="String">${f.es_sub ? 'Subcontrata' : 'Propia'}</Data></Cell>
-        <Cell ss:StyleID="TextBold"><Data ss:Type="String">${escapeXml(f.ap1 + ' ' + f.ap2)}</Data></Cell>
-        <Cell ss:StyleID="Text"><Data ss:Type="String">${escapeXml(f.nom_p)}</Data></Cell>
-        <Cell ss:StyleID="Center"><Data ss:Type="String">${escapeXml(f.dni)}</Data></Cell>
+        <Cell ss:StyleID="TextBold"><Data ss:Type="String">${escapeXml(f.ap1 ? (f.ap1 + ' ' + (f.ap2 || '')) : (f.nombre || ''))}</Data></Cell>
+        <Cell ss:StyleID="Text"><Data ss:Type="String">${escapeXml(f.nom_p || '')}</Data></Cell>
+        <Cell ss:StyleID="Center"><Data ss:Type="String">${escapeXml(f.dni || '')}</Data></Cell>
         <Cell ss:StyleID="Center"><Data ss:Type="String">${escapeXml(f.nom_r || '—')}</Data></Cell>
         <Cell ss:StyleID="Number"><Data ss:Type="Number">${f.horas || 0}</Data></Cell>
-        <Cell ss:StyleID="Number"><Data ss:Type="Number">${f.tarifa || 0}</Data></Cell>
+        <Cell ss:StyleID="Number"><Data ss:Type="Number">${f.tarifa || f.precio_hora || 0}</Data></Cell>
         <Cell ss:StyleID="TotalNumber"><Data ss:Type="Number">${f.coste || 0}</Data></Cell>
       </Row>
     `;

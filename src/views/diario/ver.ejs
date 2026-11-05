@@ -1,9 +1,23 @@
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <div>
-    <h2 class="h4 mb-0"><i class="bi bi-calendar-day"></i> <%= obra.nombre %>
-      <span class="badge bg-secondary fw-normal ms-1"><%= obra.codigo %></span>
-    </h2>
-    <small class="text-muted"><%= fecha %></small>
+    <div class="d-flex align-items-center gap-2">
+      <h2 class="h4 mb-0"><i class="bi bi-calendar-day text-warning"></i> <%= obra.nombre %>
+        <span class="badge bg-secondary fw-normal ms-1"><%= obra.codigo %></span>
+      </h2>
+    </div>
+    <% if (obra.descripcion) { %>
+      <div class="text-secondary small text-truncate" style="max-width: 500px;"><%= obra.descripcion %></div>
+    <% } %>
+    <div class="d-flex align-items-center gap-2 mt-1">
+      <a href="/diario/<%= obra.id_obra %>/<%= fecha_anterior %>" class="btn btn-outline-secondary btn-sm py-0 px-2" title="Ir al día anterior (<%= fecha_anterior %>)">
+        <i class="bi bi-chevron-left"></i> Anterior
+      </a>
+      <input type="date" class="form-control form-control-sm py-0 px-2 font-monospace text-center" style="width:130px;height:28px"
+             value="<%= fecha %>" onchange="if(this.value) window.location.href='/diario/<%= obra.id_obra %>/'+this.value" title="Cambiar fecha del parte">
+      <a href="/diario/<%= obra.id_obra %>/<%= fecha_siguiente %>" class="btn btn-outline-secondary btn-sm py-0 px-2" title="Ir al día siguiente (<%= fecha_siguiente %>)">
+        Siguiente <i class="bi bi-chevron-right"></i>
+      </a>
+    </div>
   </div>
   <div class="d-flex gap-2 flex-wrap">
     <a href="/diario/<%= d.id_diario %>/movil" class="btn btn-sm btn-primary">
@@ -60,6 +74,47 @@
       <div class="col-auto"><button class="btn btn-opl btn-sm">Guardar</button></div>
     </form>
   </div></div>
+  <% } %>
+</div>
+
+<!-- NOTAS CIRCUNSTANCIALES / DIARIO DE OBRA -->
+<div class="card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center py-2">
+    <span>
+      <i class="bi bi-journal-text text-warning"></i>
+      <strong class="ms-1">Notas circunstanciales del día</strong>
+      <% if (d.notas) { %>
+        <span class="badge bg-success ms-2 fw-normal"><i class="bi bi-check2"></i> Con notas</span>
+      <% } %>
+    </span>
+    <% if (obra.estado !== 'finalizada') { %>
+    <button class="btn btn-sm btn-outline-secondary py-0" type="button"
+            data-bs-toggle="collapse" data-bs-target="#fnotas">
+      <i class="bi bi-pencil"></i> <%= d.notas ? 'Editar nota' : 'Añadir nota' %>
+    </button>
+    <% } %>
+  </div>
+  <div class="card-body py-2">
+    <% if (d.notas) { %>
+      <div class="text-light" style="white-space: pre-wrap; font-size: 0.95rem;"><%= d.notas %></div>
+    <% } else { %>
+      <p class="text-muted small mb-0 fst-italic">Sin notas ni incidencias circunstanciales registradas para este día.</p>
+    <% } %>
+  </div>
+  <% if (obra.estado !== 'finalizada') { %>
+  <div class="collapse <%= !d.notas ? '' : '' %>" id="fnotas">
+    <div class="card-footer bg-dark border-top border-secondary-subtle py-2">
+      <form method="post" action="/diario/<%= d.id_diario %>/notas" class="row g-2">
+        <div class="col-12">
+          <textarea name="notas" class="form-control form-control-sm" rows="3"
+                    placeholder="Apunta aquí notas circunstanciales a libre elección: retrasos de material, visitas de técnicos, incidencias meteorológicas, trabajos especiales..."><%= d.notas || '' %></textarea>
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-opl btn-sm"><i class="bi bi-check2"></i> Guardar notas</button>
+        </div>
+      </form>
+    </div>
+  </div>
   <% } %>
 </div>
 
@@ -159,7 +214,12 @@
 
 <% if (obra.estado !== 'finalizada') { %>
 <!-- NUEVA LÍNEA -->
-<div class="card"><div class="card-header"><i class="bi bi-plus"></i> Añadir persona</div>
+<div class="card"><div class="card-header d-flex justify-content-between align-items-center">
+  <span><i class="bi bi-person-plus-fill"></i> Añadir persona individual</span>
+  <a href="/diario/<%= d.id_diario %>/asignacion-masiva" class="btn btn-outline-success btn-sm py-0">
+    <i class="bi bi-people-fill"></i> Asignación múltiple / masiva
+  </a>
+</div>
 <div class="card-body">
 <form method="post" action="/diario/<%= d.id_diario %>/linea/nueva">
   <div class="row g-2 align-items-end">

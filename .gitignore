@@ -21,6 +21,13 @@ dist/
 # Documentación subida por los usuarios de la app
 docs/*
 !docs/.gitkeep
+src/docs/*
+
+# Archivos de configuración de IDEs y editores
+.idea/
+*.iml
+.vscode/
 
 *.log
 .DS_Store
+

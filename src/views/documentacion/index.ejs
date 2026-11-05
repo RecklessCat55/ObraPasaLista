@@ -1,7 +1,7 @@
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <div>
     <h2 class="h4 mb-0"><i class="bi bi-folder2-open"></i> Documentación — <%= obra.nombre %></h2>
-    <small class="text-muted">Planos, fotos y PDFs organizados por partida</small>
+    <small class="text-muted">Planos, fotos y PDFs organizados por partida &bull; <span class="badge bg-secondary"><i class="bi bi-files"></i> Soporte multi-archivo</span></small>
   </div>
   <a href="/obras/<%= obra.id_obra %>/editar" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Ficha de obra</a>
 </div>
@@ -61,17 +61,17 @@
         <% }); %>
       </ul>
       <% if (obra.estado !== 'finalizada') { %>
-      <form method="post" action="/obra/<%= obra.id_obra %>/documentacion/carpeta/<%= sc.id_carpeta %>/subir" enctype="multipart/form-data" class="d-flex gap-1">
-        <input type="file" name="archivo" class="form-control form-control-sm" required>
-        <button class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-upload"></i></button>
+      <form method="post" action="/obra/<%= obra.id_obra %>/documentacion/carpeta/<%= sc.id_carpeta %>/subir" enctype="multipart/form-data" class="d-flex gap-1 align-items-center">
+        <input type="file" name="archivos" class="form-control form-control-sm" multiple required title="Selecciona uno o varios archivos">
+        <button class="btn btn-sm btn-outline-secondary py-0 text-nowrap" title="Subir archivos seleccionados"><i class="bi bi-upload"></i> Subir</button>
       </form>
       <% } %>
     </div>
     <% }); %>
     <% if (obra.estado !== 'finalizada') { %>
-    <form method="post" action="/obra/<%= obra.id_obra %>/documentacion/carpeta/<%= c.id_carpeta %>/subir" enctype="multipart/form-data" class="d-flex gap-1">
-      <input type="file" name="archivo" class="form-control form-control-sm" required>
-      <button class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-upload"></i></button>
+    <form method="post" action="/obra/<%= obra.id_obra %>/documentacion/carpeta/<%= c.id_carpeta %>/subir" enctype="multipart/form-data" class="d-flex gap-1 align-items-center">
+      <input type="file" name="archivos" class="form-control form-control-sm" multiple required title="Selecciona uno o varios archivos">
+      <button class="btn btn-sm btn-outline-secondary py-0 text-nowrap" title="Subir archivos seleccionados"><i class="bi bi-upload"></i> Subir</button>
     </form>
     <% } %>
   </div></div>

@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS obra(
     codigo TEXT NOT NULL UNIQUE, nombre TEXT NOT NULL,
     estado TEXT NOT NULL DEFAULT 'activa',
     meta_horas_dia REAL,
+    descripcion TEXT NOT NULL DEFAULT '',
     deleted_at TEXT DEFAULT NULL);
 
 CREATE TABLE IF NOT EXISTS obra_empresa(
@@ -127,6 +128,7 @@ CREATE TABLE IF NOT EXISTS diario(
     meteo_estado  TEXT NOT NULL DEFAULT 'soleado',
     meteo_detalle TEXT NOT NULL DEFAULT '',
     meteo_temp_c  REAL,
+    notas         TEXT NOT NULL DEFAULT '',
     UNIQUE(id_obra, fecha));
 
 CREATE TABLE IF NOT EXISTS diario_linea(
@@ -272,6 +274,12 @@ const MIGRATION_V14 = [
   'ALTER TABLE obra    ADD COLUMN deleted_at TEXT DEFAULT NULL',
 ];
 
+// -- MIGRACIÓN v1.4 -> v1.5 (Descripción en obra y notas en diario) --
+const MIGRATION_V15 = [
+  "ALTER TABLE obra ADD COLUMN descripcion TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE diario ADD COLUMN notas TEXT NOT NULL DEFAULT ''",
+];
+
 let _db = null;
 
 /** Abre (o devuelve) la conexión única a SQLite, con los PRAGMAs de rigor. */
@@ -323,7 +331,8 @@ function initIfNeeded(db) {
   aplicarMigracion(db, MIGRATION_V12, 'v1.2 (auto)');
   aplicarMigracion(db, MIGRATION_V13, 'v1.3 (auto)');
   aplicarMigracion(db, MIGRATION_V14, 'v1.4 (auto)');
-  db.pragma('user_version = 14');
+  aplicarMigracion(db, MIGRATION_V15, 'v1.5 (auto)');
+  db.pragma('user_version = 15');
   const cfg = db.prepare('SELECT 1 FROM config WHERE id_config=1').get();
   if (!cfg) {
     db.prepare(
@@ -336,12 +345,12 @@ function initIfNeeded(db) {
 /** flask --app app init-db : instalación limpia, ya en v1.4. */
 function cliInitDb(db) {
   db.exec(SCHEMA);
-  db.pragma('user_version = 14');
+  db.pragma('user_version = 15');
   db.prepare(
     'INSERT OR IGNORE INTO config(id_config,limite_horas_dia,umbral_desajuste_meta) VALUES(1,24.0,2.0)'
   ).run();
   seedRangos(db);
-  console.log('OK BD inicializada (v1.4).');
+  console.log('OK BD inicializada (v1.5).');
 }
 
 /** flask --app app upgrade-db : migra una BD v1.0/v1.1/v1.2/v1.3 existente hasta v1.4 (idempotente). */
@@ -350,7 +359,8 @@ function cliUpgradeDb(db) {
   aplicarMigracion(db, MIGRATION_V12, 'v1.2');
   aplicarMigracion(db, MIGRATION_V13, 'v1.3');
   aplicarMigracion(db, MIGRATION_V14, 'v1.4');
-  db.pragma('user_version = 14');
+  aplicarMigracion(db, MIGRATION_V15, 'v1.5');
+  db.pragma('user_version = 15');
   db.prepare(
     'INSERT OR IGNORE INTO config(id_config,limite_horas_dia,umbral_desajuste_meta) VALUES(1,24.0,2.0)'
   ).run();
@@ -370,7 +380,7 @@ function cliUpgradeDb(db) {
     });
     tx();
   }
-  console.log('OK Migración v1.4 completada.');
+  console.log('OK Migración v1.5 completada.');
 }
 
 module.exports = {
@@ -380,6 +390,7 @@ module.exports = {
   MIGRATION_V12,
   MIGRATION_V13,
   MIGRATION_V14,
+  MIGRATION_V15,
   getDb,
   closeDb,
   seedRangos,

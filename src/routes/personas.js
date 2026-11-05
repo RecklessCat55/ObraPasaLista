@@ -153,7 +153,7 @@ router.get('/:id/editar', (req, res) => {
        WHERE pr.id_persona=? ORDER BY pr.fecha_inicio DESC`
     )
     .all(id);
-  renderPage(req, res, 'personas/form', { title: 'Editar persona', active: 'mas', per, emps, rangos, ra, hist });
+  renderPage(req, res, 'personas/form', { title: 'Editar persona', active: 'mas', per, emps, rangos, ra, hist, hoy: fsDate(new Date()) });
 });
 
 router.post('/:id/editar', (req, res) => {
@@ -203,14 +203,21 @@ router.post('/:id/editar', (req, res) => {
              meta_horas_dia=?,precio_hora_override=? WHERE id_persona=?`
           )
           .run(nom, ap1, ap2, dni, ide, ofi, est, meta, precio, id);
-        if (newR) {
-          const hoyS = fsDate(new Date());
+        const newRId = newR ? parseInt(newR, 10) : null;
+        if (newRId && (!ra || newRId !== ra.id_rango)) {
+          let fechaEf = fsDate(new Date());
+          if (f.fecha_rango_nuevo && f.fecha_rango_nuevo.trim()) {
+            try { fechaEf = fsDate(f.fecha_rango_nuevo.trim()); } catch (_) {}
+          }
+          const dt = new Date(fechaEf);
+          dt.setDate(dt.getDate() - 1);
+          const fechaFinPrevia = fsDate(dt);
           conn
             .prepare('UPDATE persona_rango SET fecha_fin=? WHERE id_persona=? AND fecha_fin IS NULL')
-            .run(hoyS, id);
+            .run(fechaFinPrevia, id);
           conn
             .prepare('INSERT INTO persona_rango(id_persona,id_rango,fecha_inicio) VALUES(?,?,?)')
-            .run(id, newR, hoyS);
+            .run(id, newRId, fechaEf);
         }
       });
       tx();
