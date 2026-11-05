@@ -6,8 +6,19 @@
   <title><%= title %> — ObraPasaLista</title>
   <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css">
   <link rel="stylesheet" href="/vendor/bootstrap-icons/font/bootstrap-icons.min.css">
+  <!-- SCRIPT ANTI-FLICKER MODO CLARO / OSCURO -->
+  <script>
+    (function() {
+      try {
+        var saved = localStorage.getItem('opl_theme');
+        var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var theme = saved ? saved : (prefersDark ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-bs-theme', theme);
+      } catch (e) {}
+    })();
+  </script>
   <style>
-    :root {
+    :root, [data-bs-theme="dark"] {
       --opl-orange: #f97316;
       --opl-orange-hover: #ea580c;
       --opl-bg-base: #0d1117;
@@ -15,12 +26,24 @@
       --opl-border: #30363d;
       --opl-text: #e6edf3;
       --opl-text-muted: #8b949e;
+      --opl-card-header: rgba(255, 255, 255, 0.03);
+    }
+    [data-bs-theme="light"] {
+      --opl-orange: #f97316;
+      --opl-orange-hover: #ea580c;
+      --opl-bg-base: #f6f8fa;
+      --opl-bg-surface: #ffffff;
+      --opl-border: #d0d7de;
+      --opl-text: #1f2328;
+      --opl-text-muted: #656d76;
+      --opl-card-header: rgba(0, 0, 0, 0.03);
     }
     body {
       background-color: var(--opl-bg-base);
       color: var(--opl-text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       min-height: 100vh;
+      transition: background-color 0.15s ease, color 0.15s ease;
     }
     /* Brand & Accent */
     .navbar-brand {
@@ -56,7 +79,7 @@
       border-radius: 8px;
     }
     .card-header {
-      background-color: rgba(255, 255, 255, 0.02);
+      background-color: var(--opl-card-header);
       border-color: var(--opl-border);
     }
     .sec {
@@ -79,12 +102,12 @@
     }
     .nav-link:hover {
       color: var(--opl-text);
-      background-color: rgba(255, 255, 255, 0.04);
+      background-color: rgba(125, 125, 125, 0.08);
     }
     .nav-link.hi {
       color: var(--opl-orange) !important;
       font-weight: 600;
-      background-color: rgba(249, 115, 22, 0.1);
+      background-color: rgba(249, 115, 22, 0.12);
     }
 
     /* Zonas de toque ampliadas para obra (dedos con polvo, guantes, pantallas táctiles) */
@@ -116,7 +139,7 @@
         left: 0;
         right: 0;
         height: 60px;
-        background-color: #161b22;
+        background-color: var(--opl-bg-surface);
         border-top: 1px solid var(--opl-border);
         display: flex;
         align-items: center;
@@ -238,7 +261,7 @@
         </li>
       </ul>
 
-      <!-- DERECHA: AYUDA Y FECHA -->
+      <!-- DERECHA: AYUDA, MODO CLARO/OSCURO Y FECHA -->
       <ul class="navbar-nav align-items-lg-center gap-2">
         <li class="nav-item d-none d-xl-block text-secondary small me-2">
           <i class="bi bi-calendar3"></i> <%= hoy %>
@@ -247,6 +270,14 @@
           <a class="nav-link <%= isFaq ? 'hi' : '' %>" href="/faq/">
             <i class="bi bi-question-circle"></i> Ayuda
           </a>
+        </li>
+        <!-- SELECTOR DE TEMA CLARO / OSCURO -->
+        <li class="nav-item">
+          <button id="themeToggleBtn" class="btn btn-outline-secondary btn-sm py-1 px-2 border-0" type="button" title="Alternar entre modo claro y modo oscuro" aria-label="Cambiar tema">
+            <i class="bi bi-sun-fill text-warning" id="themeIconSun" style="display:none; font-size:1.05rem;"></i>
+            <i class="bi bi-moon-stars-fill text-info" id="themeIconMoon" style="font-size:1.05rem;"></i>
+            <span class="d-lg-none ms-1 small" id="themeLabel">Modo</span>
+          </button>
         </li>
       </ul>
     </div>
@@ -308,6 +339,47 @@
 </nav>
 
 <script src="/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+<!-- SCRIPT CONTROLADOR DEL TEMA CLARO / OSCURO -->
+<script>
+  (function() {
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-bs-theme', theme);
+      var sun = document.getElementById('themeIconSun');
+      var moon = document.getElementById('themeIconMoon');
+      var label = document.getElementById('themeLabel');
+      if (theme === 'light') {
+        if (sun) sun.style.display = 'inline-block';
+        if (moon) moon.style.display = 'none';
+        if (label) label.textContent = 'Claro';
+        document.querySelectorAll('.dropdown-menu-dark').forEach(function(el) {
+          el.classList.remove('dropdown-menu-dark');
+          el.classList.add('dropdown-menu-light');
+        });
+      } else {
+        if (sun) sun.style.display = 'none';
+        if (moon) moon.style.display = 'inline-block';
+        if (label) label.textContent = 'Oscuro';
+        document.querySelectorAll('.dropdown-menu-light').forEach(function(el) {
+          el.classList.remove('dropdown-menu-light');
+          el.classList.add('dropdown-menu-dark');
+        });
+      }
+    }
+
+    var currentTheme = document.documentElement.getAttribute('data-bs-theme') || 'dark';
+    applyTheme(currentTheme);
+
+    var btn = document.getElementById('themeToggleBtn');
+    if (btn) {
+      btn.addEventListener('click', function() {
+        var cur = document.documentElement.getAttribute('data-bs-theme') || 'dark';
+        var next = cur === 'dark' ? 'light' : 'dark';
+        try { localStorage.setItem('opl_theme', next); } catch (e) {}
+        applyTheme(next);
+      });
+    }
+  })();
+</script>
 <%- scripts %>
 </body>
 </html>

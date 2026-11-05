@@ -21,7 +21,12 @@
 </div></div>
 
 <% if (obra_sel) { %>
-<h5 class="mb-2"><%= obra_sel.nombre %> — <%= mes_str %></h5>
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <h5 class="mb-0 fw-bold"><%= obra_sel.nombre %> — <%= mes_str %></h5>
+  <a href="/informes/costes/excel?id_obra=<%= obra_sel.id_obra %>&mes=<%= mes_str %>" class="btn btn-outline-success btn-sm">
+    <i class="bi bi-file-earmark-excel me-1"></i> Descargar Excel de Costes
+  </a>
+</div>
 <div class="row g-3 mb-3">
   <div class="col-md-6">
     <div class="card"><div class="card-header">Coste total por persona y mes</div><div class="card-body p-0">
